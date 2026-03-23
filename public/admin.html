@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav>
+        <strong>Admin Control Center</strong>
+        <button id="logout-btn" class="btn-danger">Logout</button>
+    </nav>
+    <div class="container">
+        <div class="grid-2">
+            <section class="card">
+                <h4>Manage Wash Types</h4>
+                <form id="service-form" class="mt-1">
+                    <div class="form-group">
+                        <input type="text" id="svc-name" placeholder="e.g., Full Wax" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="number" id="svc-price" placeholder="Price (₦)" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Add Service</button>
+                </form>
+                <div id="services-list-container" class="mt-1"></div>
+            </section>
+            <section class="card">
+                <h4>Create Attendant</h4>
+                <form id="attendant-form" class="mt-1">
+                    <div class="form-group">
+                        <input type="text" id="att-name" placeholder="Full Name" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="email" id="att-email" placeholder="Email Address" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Generate Account</button>
+                </form>
+            </section>
+        </div>
+        <h3 class="mt-2">Daily Activity</h3>
+        <div class="form-group date-picker-container">
+            <label>Search Day:</label>
+            <input type="date" id="activity-date-filter">
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plate</th>
+                        <th>Type</th>
+                        <th>Attendant</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="daily-activity-body"></tbody>
+            </table>
+        </div>
+    </div>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

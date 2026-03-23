@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav>
+        <strong>Staff Portal</strong>
+        <div>
+            <button id="change-pass-btn" class="btn-small btn-primary">Change Password</button>
+            <button id="logout-btn" class="btn-danger">Logout</button>
+        </div>
+    </nav>
+    <div class="container">
+        <h3>My Assigned Tasks</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plate Number</th>
+                        <th>Wash Type</th>
+                        <th>Progress</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="attendant-tasks"></tbody>
+            </table>
+        </div>
+    </div>
+    <div id="password-modal" class="modal-hidden">
+        <div class="card">
+            <h4>Update Password</h4>
+            <div class="form-group mt-1">
+                <input type="password" id="new-password" placeholder="New Password">
+            </div>
+            <button id="save-pass-btn" class="btn-primary">Update</button>
+        </div>
+    </div>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
