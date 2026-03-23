@@ -14,6 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const display = document.getElementById('user-display');
             if (display) display.textContent = `Welcome, ${data.user.username}`;
+            
+            // If user is a customer, load services for booking dropdown
+            if (data.user.role === 'customer') {
+                populateBookingDropdown();
+            }
+            
             return data.user;
         } catch (err) {
             if (!window.location.pathname.endsWith('index.html')) {
@@ -24,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. ADMIN: SERVICE & LOG MANAGEMENT ---
     const serviceForm = document.getElementById('service-form');
-    const attendantForm = document.getElementById('attendant-form'); // Added missing reference
+    const attendantForm = document.getElementById('attendant-form');
     const serviceList = document.getElementById('services-list-container');
     const logDateFilter = document.getElementById('activity-date-filter');
 
@@ -34,7 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/admin/services');
             const data = await res.json();
             
-            // Clean container without innerHTML
             while (serviceList.firstChild) {
                 serviceList.removeChild(serviceList.firstChild);
             }
@@ -43,19 +48,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 data.services.forEach(svc => {
                     const div = document.createElement('div');
                     div.className = 'log-entry mt-1';
-                    
                     const strong = document.createElement('strong');
                     strong.textContent = svc.name;
-                    
                     const span = document.createElement('span');
                     span.textContent = ` - ₦${svc.price}`;
-                    
                     div.append(strong, span);
                     serviceList.appendChild(div);
                 });
             }
         } catch (err) {
             console.error("Error rendering services:", err);
+        }
+    };
+
+    // NEW: Function to let customers see services to book them
+    const populateBookingDropdown = async () => {
+        const select = document.getElementById('booking-service-select');
+        if (!select) return;
+
+        const res = await fetch('/api/admin/services');
+        const data = await res.json();
+
+        if (data.services) {
+            data.services.forEach(svc => {
+                const opt = document.createElement('option');
+                opt.value = svc._id;
+                opt.textContent = `${svc.name} (₦${svc.price})`;
+                select.appendChild(opt);
+            });
         }
     };
 
@@ -80,7 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderServices();
     }
 
-    // --- NEW: ATTENDANT GENERATION LOGIC ---
     if (attendantForm) {
         attendantForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -101,38 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 attendantForm.reset();
             } else {
                 alert("Error: " + data.message);
-            }
-        });
-    }
-
-    if (logDateFilter) {
-        logDateFilter.addEventListener('change', async (e) => {
-            const date = e.target.value;
-            const res = await fetch(`/api/admin/logs?date=${date}`);
-            const data = await res.json();
-            const tbody = document.getElementById('daily-activity-body');
-            if (!tbody) return;
-            
-            while (tbody.firstChild) {
-                tbody.removeChild(tbody.firstChild);
-            }
-
-            if (data.logs) {
-                data.logs.forEach(log => {
-                    const tr = document.createElement('tr');
-                    const fields = [
-                        log.action, 
-                        log.username, 
-                        log.device, 
-                        new Date(log.createdAt).toLocaleTimeString()
-                    ];
-                    fields.forEach(text => {
-                        const td = document.createElement('td');
-                        td.textContent = text;
-                        tr.appendChild(td);
-                    });
-                    tbody.appendChild(tr);
-                });
             }
         });
     }
