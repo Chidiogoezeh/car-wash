@@ -3,12 +3,14 @@ import jwt from 'jsonwebtoken';
 
 export const register = async (req, res) => {
     try {
-        const { username, email, password, deviceId } = req.body;
+        let { username, email, password, deviceId } = req.body;
 
-        // Security: Ensure inputs are strings to prevent NoSQL Injection
         if (typeof email !== 'string' || typeof password !== 'string') {
             return res.status(400).json({ success: false, message: "Invalid input format" });
         }
+
+        // Normalize email
+        email = email.trim().toLowerCase();
 
         const existingDevice = await User.findOne({ deviceId: String(deviceId) });
         if (existingDevice) {
@@ -29,23 +31,33 @@ export const login = async (req, res) => {
     try {
         let { email, password } = req.body;
         
-        // Security: Cast to string to prevent object injection attacks
-        email = String(email);
+        if (!email || !password) {
+            return res.status(400).json({ success: false, message: "Please provide email and password" });
+        }
+
+        // Normalize email to match seeded data
+        email = String(email).trim().toLowerCase();
         password = String(password);
 
-        const user = await User.findOne({ email }).select('+password'); // Explicitly select password for comparison
+        // We MUST select('+password') because it is hidden in the model
+        const user = await User.findOne({ email }).select('+password'); 
 
-        if (!user || !(await user.comparePassword(password))) {
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+
+        // Use the model method to compare
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
         
-        // Security: Secure cookie flags
         res.cookie('token', token, { 
             httpOnly: true, 
             sameSite: 'strict',
-            secure: process.env.NODE_ENV === 'production' // Only send over HTTPS in production
+            secure: process.env.NODE_ENV === 'production'
         });
         
         res.json({ 
@@ -53,7 +65,8 @@ export const login = async (req, res) => {
             user: { username: user.username, role: user.role } 
         });
     } catch (err) {
-        res.status(500).json({ success: false, message: "Login failed" });
+        console.error("Login Error:", err);
+        res.status(500).json({ success: false, message: "Server error during login" });
     }
 };
 
