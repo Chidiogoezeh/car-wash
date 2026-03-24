@@ -1,10 +1,13 @@
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
-import { updateTaskStatus, assignAttendant } from '../controllers/taskController.js';
+import { updateTaskStatus, assignAttendant, getMyTasks } from '../controllers/taskController.js';
 
 const router = express.Router();
 
-// Admin assigns
+// Attendants see their own tasks
+router.get('/my-tasks', protect, authorize('attendant'), getMyTasks);
+
+// Admin assigns tasks
 router.patch('/assign', protect, authorize('admin'), assignAttendant);
 
 // Attendants update status

@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderAttendantTasks();
             } else if (data.user.role === 'admin') {
                 renderServices();
+                renderDailyActivity(); // Admin sees all tasks
             }
             
             return data.user;
@@ -35,15 +36,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 2. CUSTOMER: BOOKING & TRACKING ---
     const bookingForm = document.getElementById('booking-form');
-    const myOrdersContainer = document.getElementById('my-orders-list');
+    const orderHistoryBody = document.getElementById('order-history');
 
     const populateBookingDropdown = async () => {
-        const select = document.getElementById('booking-service-select');
+        const select = document.getElementById('service-select');
+        const slotSelect = document.getElementById('slot-select');
         if (!select) return;
 
+        // Fetch Services
         const res = await fetch('/api/admin/services');
         const data = await res.json();
-
         if (data.services) {
             data.services.forEach(svc => {
                 const opt = document.createElement('option');
@@ -52,15 +54,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 select.appendChild(opt);
             });
         }
+
+        // Static slots for example (Requirement: available slots)
+        const slots = ["09:00 AM", "11:00 AM", "01:00 PM", "03:00 PM"];
+        slots.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            slotSelect.appendChild(opt);
+        });
     };
 
     if (bookingForm) {
         bookingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const payload = {
-                service: document.getElementById('booking-service-select').value,
-                vehiclePlate: document.getElementById('vehicle-plate').value,
-                slot: document.getElementById('booking-slot').value // Typically a date/time string
+                service: document.getElementById('service-select').value,
+                vehiclePlate: document.getElementById('plate-number').value,
+                slot: document.getElementById('slot-select').value
             };
 
             const res = await fetch('/api/orders', {
@@ -78,76 +89,79 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const renderMyOrders = async () => {
-        if (!myOrdersContainer) return;
+        if (!orderHistoryBody) return;
         const res = await fetch('/api/orders/my-orders');
         const data = await res.json();
 
-        while (myOrdersContainer.firstChild) {
-            myOrdersContainer.removeChild(myOrdersContainer.firstChild);
-        }
+        while (orderHistoryBody.firstChild) { orderHistoryBody.removeChild(orderHistoryBody.firstChild); }
 
         if (data.data) {
             data.data.forEach(order => {
-                const div = document.createElement('div');
-                div.className = 'log-entry mt-1';
+                const tr = document.createElement('tr');
                 
-                const info = document.createElement('span');
-                info.textContent = `${order.service.name} - ${order.vehiclePlate} | Status: `;
+                const plateTd = document.createElement('td');
+                plateTd.textContent = order.vehiclePlate;
                 
-                const statusBadge = document.createElement('b');
-                statusBadge.textContent = order.status.toUpperCase();
-                // Color coding logic
-                statusBadge.style.color = order.status === 'completed' ? '#2ecc71' : '#f39c12';
+                const serviceTd = document.createElement('td');
+                serviceTd.textContent = order.service ? order.service.name : 'N/A';
+                
+                const statusTd = document.createElement('td');
+                const badge = document.createElement('span');
+                badge.textContent = order.status.toUpperCase();
+                badge.className = `badge-${order.status}`; // Add CSS classes for colors
+                statusTd.appendChild(badge);
 
-                div.append(info, statusBadge);
-                myOrdersContainer.appendChild(div);
+                const actionTd = document.createElement('td');
+                actionTd.textContent = order.status === 'completed' ? 'Paid & Notified' : 'Pending...';
+
+                tr.append(plateTd, serviceTd, statusTd, actionTd);
+                orderHistoryBody.appendChild(tr);
             });
         }
     };
 
     // --- 3. ATTENDANT: TASK MANAGEMENT ---
-    const taskList = document.getElementById('attendant-task-list');
+    const attendantTaskBody = document.getElementById('attendant-tasks');
 
     const renderAttendantTasks = async () => {
-        if (!taskList) return;
-        // This endpoint should return orders assigned to 'req.user._id'
+        if (!attendantTaskBody) return;
         const res = await fetch('/api/tasks/my-tasks'); 
         const data = await res.json();
 
-        while (taskList.firstChild) {
-            taskList.removeChild(taskList.firstChild);
-        }
+        while (attendantTaskBody.firstChild) { attendantTaskBody.removeChild(attendantTaskBody.firstChild); }
 
         if (data.data) {
             data.data.forEach(task => {
-                const row = document.createElement('div');
-                row.className = 'log-entry mt-2 d-flex justify-between';
+                const tr = document.createElement('tr');
+                
+                const plateTd = document.createElement('td');
+                plateTd.textContent = task.vehiclePlate;
+                
+                const typeTd = document.createElement('td');
+                typeTd.textContent = task.service ? task.service.name : 'N/A';
+                
+                const progressTd = document.createElement('td');
+                progressTd.textContent = task.status;
 
-                const details = document.createElement('div');
-                details.textContent = `${task.vehiclePlate} (${task.service.name})`;
-
-                const btnGroup = document.createElement('div');
-
+                const actionTd = document.createElement('td');
+                const btn = document.createElement('button');
+                btn.className = "btn-small";
+                
                 if (task.status === 'assigned') {
-                    const startBtn = document.createElement('button');
-                    startBtn.textContent = "Start Wash";
-                    startBtn.className = "btn-small";
-                    startBtn.onclick = () => updateTaskStatus(task._id, 'started');
-                    btnGroup.appendChild(startBtn);
+                    btn.textContent = "Start Wash";
+                    btn.onclick = () => updateTaskStatus(task._id, 'started');
+                    actionTd.appendChild(btn);
                 } else if (task.status === 'started') {
-                    const doneBtn = document.createElement('button');
-                    doneBtn.textContent = "Mark Completed";
-                    doneBtn.className = "btn-small success";
-                    doneBtn.onclick = () => updateTaskStatus(task._id, 'completed');
-                    btnGroup.appendChild(doneBtn);
+                    btn.textContent = "Complete";
+                    btn.className = "btn-small btn-success";
+                    btn.onclick = () => updateTaskStatus(task._id, 'completed');
+                    actionTd.appendChild(btn);
                 } else {
-                    const statusText = document.createElement('span');
-                    statusText.textContent = "Finished";
-                    btnGroup.appendChild(statusText);
+                    actionTd.textContent = "✓ Finished";
                 }
 
-                row.append(details, btnGroup);
-                taskList.appendChild(row);
+                tr.append(plateTd, typeTd, progressTd, actionTd);
+                attendantTaskBody.appendChild(tr);
             });
         }
     };
@@ -160,16 +174,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (res.ok) {
-            if (newStatus === 'completed') {
-                alert("Task completed! Customer has been notified via email.");
-            }
+            if (newStatus === 'completed') alert("Task completed! Customer notified.");
             renderAttendantTasks();
         }
     };
 
-    // --- 4. ADMIN: SERVICE & STAFF ---
-    const serviceForm = document.getElementById('service-form');
+    // --- 4. ADMIN: DAILY ACTIVITY & SERVICES ---
     const serviceList = document.getElementById('services-list-container');
+    const activityBody = document.getElementById('daily-activity-body');
 
     const renderServices = async () => {
         if (!serviceList) return;
@@ -180,9 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             data.services.forEach(svc => {
                 const div = document.createElement('div');
                 div.className = 'log-entry mt-1';
-                const content = document.createElement('span');
-                content.textContent = `${svc.name} - ₦${svc.price}`;
-                div.appendChild(content);
+                div.textContent = `${svc.name} - ₦${svc.price}`;
                 serviceList.appendChild(div);
             });
         }
