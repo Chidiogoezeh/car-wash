@@ -1,5 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. GLOBALS & AUTH CHECK ---
+    // --- 1. CONFIG & GLOBALS ---
+    const BANK_DETAILS = "GTBank | Sparkle Wash | 0123456789";
+
+    // --- 2. AUTHENTICATION CHECK ---
     const checkAuth = async () => {
         try {
             const res = await fetch('/api/auth/me');
@@ -15,13 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const display = document.getElementById('user-display');
             if (display) display.textContent = `Welcome, ${data.user.username}`;
             
-            // ROLE-BASED UI INITIALIZATION
-            if (data.user.role === 'customer') {
+            // Initialize UI based on role
+            const role = data.user.role;
+            if (role === 'customer') {
                 populateBookingDropdown();
                 renderMyOrders();
-            } else if (data.user.role === 'attendant') {
+            } else if (role === 'attendant') {
                 renderAttendantTasks();
-            } else if (data.user.role === 'admin') {
+            } else if (role === 'admin') {
                 renderServices();
                 renderDailyActivity(); 
             }
@@ -35,19 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- 2. CUSTOMER: BOOKING & TRACKING ---
-    const bookingForm = document.getElementById('booking-form');
-    const orderHistoryBody = document.getElementById('order-history');
-
+    // --- 3. CUSTOMER LOGIC ---
     const populateBookingDropdown = async () => {
         const select = document.getElementById('service-select');
         const slotSelect = document.getElementById('slot-select');
         if (!select) return;
 
-        // Clear existing to avoid duplicates
         while (select.firstChild) select.removeChild(select.firstChild);
         
-        // Add a placeholder
         const placeholder = document.createElement('option');
         placeholder.value = "";
         placeholder.textContent = "-- Select Wash Type --";
@@ -58,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/admin/services');
             const data = await res.json();
-            
             if (data.services) {
                 data.services.forEach(svc => {
                     const opt = document.createElement('option');
@@ -67,11 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     select.appendChild(opt);
                 });
             }
-        } catch (err) {
-            console.error("Failed to load services:", err);
-        }
+        } catch (err) { console.error("Service load error:", err); }
 
-        // Available Slots
         const slots = ["09:00 AM", "11:00 AM", "01:00 PM", "03:00 PM", "05:00 PM"];
         if (slotSelect) {
             while (slotSelect.firstChild) slotSelect.removeChild(slotSelect.firstChild);
@@ -84,54 +79,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    if (bookingForm) {
-        bookingForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const serviceVal = document.getElementById('service-select').value;
-            
-            if (!serviceVal) {
-                alert("Please select a wash type.");
-                return;
-            }
-
-            const payload = {
-                service: serviceVal,
-                vehiclePlate: document.getElementById('plate-number').value,
-                slot: document.getElementById('slot-select').value
-            };
-
-            const res = await fetch('/api/orders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                alert("Wash booked successfully!");
-                bookingForm.reset();
-                renderMyOrders();
-            }
-        });
-    }
-
     const renderMyOrders = async () => {
+        const orderHistoryBody = document.getElementById('order-history');
         if (!orderHistoryBody) return;
+        
         const res = await fetch('/api/orders/my-orders');
         const data = await res.json();
-
-        while (orderHistoryBody.firstChild) { 
-            orderHistoryBody.removeChild(orderHistoryBody.firstChild); 
-        }
+        while (orderHistoryBody.firstChild) orderHistoryBody.removeChild(orderHistoryBody.firstChild);
 
         if (data.data) {
             data.data.forEach(order => {
                 const tr = document.createElement('tr');
-                
-                const plateTd = document.createElement('td');
-                plateTd.textContent = order.vehiclePlate;
-                
-                const serviceTd = document.createElement('td');
-                serviceTd.textContent = order.service ? order.service.name : 'N/A';
+                tr.append(createTd(order.vehiclePlate), createTd(order.service?.name || 'N/A'));
                 
                 const statusTd = document.createElement('td');
                 const badge = document.createElement('span');
@@ -140,56 +99,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusTd.appendChild(badge);
 
                 const actionTd = document.createElement('td');
-                actionTd.textContent = order.status === 'completed' ? 'Paid & Notified' : 'Processing...';
+                if (order.status === 'completed' && !order.paymentConfirmed) {
+                    const info = document.createElement('div');
+                    info.className = 'text-xs text-muted';
+                    info.textContent = `Pay to: ${BANK_DETAILS}`;
+                    const payBtn = createBtn("Confirm I've Paid", "btn-small btn-success mt-1", () => notifyPayment(order._id));
+                    actionTd.append(info, payBtn);
+                } else if (order.paymentConfirmed) {
+                    actionTd.textContent = "✅ Payment Verified";
+                } else {
+                    actionTd.textContent = "Processing...";
+                }
 
-                tr.append(plateTd, serviceTd, statusTd, actionTd);
+                tr.append(statusTd, actionTd);
                 orderHistoryBody.appendChild(tr);
             });
         }
     };
 
-    // --- 3. ATTENDANT: TASK MANAGEMENT ---
-    const attendantTaskBody = document.getElementById('attendant-tasks');
+    const notifyPayment = async (orderId) => {
+        const res = await fetch(`/api/orders/paid/${orderId}`, { method: 'PATCH' });
+        if (res.ok) {
+            alert("Admin notified of your payment.");
+            renderMyOrders();
+        }
+    };
 
+    // --- 4. ATTENDANT LOGIC ---
     const renderAttendantTasks = async () => {
+        const attendantTaskBody = document.getElementById('attendant-tasks');
         if (!attendantTaskBody) return;
+        
         const res = await fetch('/api/tasks/my-tasks'); 
         const data = await res.json();
-
-        while (attendantTaskBody.firstChild) { 
-            attendantTaskBody.removeChild(attendantTaskBody.firstChild); 
-        }
+        while (attendantTaskBody.firstChild) attendantTaskBody.removeChild(attendantTaskBody.firstChild);
 
         if (data.data) {
             data.data.forEach(task => {
                 const tr = document.createElement('tr');
-                const plateTd = document.createElement('td');
-                plateTd.textContent = task.vehiclePlate;
-                
-                const typeTd = document.createElement('td');
-                typeTd.textContent = task.service ? task.service.name : 'N/A';
-                
-                const progressTd = document.createElement('td');
-                progressTd.textContent = task.status.toUpperCase();
+                tr.append(createTd(task.vehiclePlate), createTd(task.service?.name || 'N/A'), createTd(task.status.toUpperCase()));
 
                 const actionTd = document.createElement('td');
                 if (task.status === 'assigned') {
-                    const btn = document.createElement('button');
-                    btn.textContent = "Start Wash";
-                    btn.className = "btn-small";
-                    btn.onclick = () => updateTaskStatus(task._id, 'started');
-                    actionTd.appendChild(btn);
+                    actionTd.appendChild(createBtn("Start Wash", "btn-small", () => updateTaskStatus(task._id, 'started')));
                 } else if (task.status === 'started') {
-                    const btn = document.createElement('button');
-                    btn.textContent = "Mark Complete";
-                    btn.className = "btn-small btn-success";
-                    btn.onclick = () => updateTaskStatus(task._id, 'completed');
-                    actionTd.appendChild(btn);
+                    actionTd.appendChild(createBtn("Mark Complete", "btn-small btn-success", () => updateTaskStatus(task._id, 'completed')));
                 } else {
                     actionTd.textContent = "✓ Task Finished";
                 }
-
-                tr.append(plateTd, typeTd, progressTd, actionTd);
+                tr.appendChild(actionTd);
                 attendantTaskBody.appendChild(tr);
             });
         }
@@ -201,80 +159,63 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
         });
-
         if (res.ok) {
-            if (newStatus === 'completed') alert("Task completed! Customer notified.");
             renderAttendantTasks();
         }
     };
 
-    // --- 4. ADMIN: MANAGEMENT & ASSIGNMENT ---
-    const serviceList = document.getElementById('services-list-container');
-    const activityBody = document.getElementById('daily-activity-body');
-
-    const renderServices = async () => {
-        if (!serviceList) return;
-        const res = await fetch('/api/admin/services');
-        const data = await res.json();
-        while (serviceList.firstChild) { serviceList.removeChild(serviceList.firstChild); }
-        if (data.services) {
-            data.services.forEach(svc => {
-                const div = document.createElement('div');
-                div.className = 'log-entry mt-1';
-                div.textContent = `${svc.name} - ₦${svc.price}`;
-                serviceList.appendChild(div);
-            });
-        }
-    };
-
+    // --- 5. ADMIN LOGIC ---
     const renderDailyActivity = async () => {
+        const activityBody = document.getElementById('daily-activity-body');
         if (!activityBody) return;
 
         const [orderRes, staffRes] = await Promise.all([
             fetch('/api/admin/orders'),
             fetch('/api/admin/attendants')
         ]);
-        
         const orders = await orderRes.json();
         const staff = await staffRes.json();
 
-        while (activityBody.firstChild) { activityBody.removeChild(activityBody.firstChild); }
+        while (activityBody.firstChild) activityBody.removeChild(activityBody.firstChild);
 
-        if (orders.data) {
-            orders.data.forEach(order => {
-                const tr = document.createElement('tr');
-                const plateTd = document.createElement('td');
-                plateTd.textContent = order.vehiclePlate;
-                
-                const typeTd = document.createElement('td');
-                typeTd.textContent = order.service?.name || 'N/A';
-                
-                const staffTd = document.createElement('td');
-                if (order.status === 'pending') {
-                    const select = document.createElement('select');
-                    const defOpt = document.createElement('option');
-                    defOpt.textContent = "Assign Attendant...";
-                    select.appendChild(defOpt);
+        orders.data?.forEach(order => {
+            const tr = document.createElement('tr');
+            tr.append(createTd(order.vehiclePlate), createTd(order.service?.name || 'N/A'));
 
-                    staff.attendants?.forEach(att => {
-                        const opt = document.createElement('option');
-                        opt.value = att._id;
-                        opt.textContent = att.username;
-                        select.appendChild(opt);
-                    });
+            const staffTd = document.createElement('td');
+            if (order.status === 'pending') {
+                const select = document.createElement('select');
+                const def = document.createElement('option');
+                def.textContent = "Assign Staff...";
+                select.appendChild(def);
+                staff.attendants?.forEach(att => {
+                    const opt = document.createElement('option');
+                    opt.value = att._id; opt.textContent = att.username;
+                    select.appendChild(opt);
+                });
+                select.onchange = (e) => assignOrder(order._id, e.target.value);
+                staffTd.appendChild(select);
+            } else {
+                staffTd.textContent = order.attendant?.username || 'Unassigned';
+            }
 
-                    select.onchange = (e) => assignOrder(order._id, e.target.value);
-                    staffTd.appendChild(select);
-                } else {
-                    staffTd.textContent = order.attendant?.username || 'Unassigned';
-                }
-
-                const statusTd = document.createElement('td');
+            const statusTd = document.createElement('td');
+            if (order.status === 'completed' && !order.paymentConfirmed) {
+                statusTd.appendChild(createBtn("Verify Payment", "btn-small btn-primary", () => adminConfirmPayment(order._id)));
+            } else {
                 statusTd.textContent = order.status.toUpperCase();
+            }
 
-                tr.append(plateTd, typeTd, staffTd, statusTd);
-                activityBody.appendChild(tr);
-            });
+            tr.append(staffTd, statusTd);
+            activityBody.appendChild(tr);
+        });
+    };
+
+    const adminConfirmPayment = async (orderId) => {
+        const res = await fetch(`/api/admin/confirm-payment/${orderId}`, { method: 'PATCH' });
+        if (res.ok) {
+            alert("Payment successfully verified.");
+            renderDailyActivity();
         }
     };
 
@@ -285,13 +226,24 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ orderId, attendantId })
         });
-        if (res.ok) {
-            alert("Attendant assigned successfully!");
-            renderDailyActivity();
-        }
+        if (res.ok) renderDailyActivity();
     };
 
-    // --- 5. LOGOUT ---
+    // --- 6. UTILITIES & LOGOUT ---
+    const createTd = (text) => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        return td;
+    };
+
+    const createBtn = (text, cls, fn) => {
+        const b = document.createElement('button');
+        b.textContent = text;
+        b.className = cls;
+        b.onclick = fn;
+        return b;
+    };
+
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
@@ -300,5 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- 7. RUN ---
     checkAuth();
 });
