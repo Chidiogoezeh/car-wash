@@ -85,7 +85,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`-------------------------------------------`);
-    console.log(` Sparkle Car Wash Server is LIVE`);
+    console.log(` Car Wash Server is LIVE`);
     console.log(` Port: ${PORT}`);
     console.log(` Mode: ${process.env.NODE_ENV || 'development'}`);
     console.log(`-------------------------------------------`);
