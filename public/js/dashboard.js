@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const display = document.getElementById('user-display');
             if (display) display.textContent = `Welcome, ${data.user.username}`;
             
-            // Initialize UI based on role
             const role = data.user.role;
             if (role === 'customer') {
                 populateBookingDropdown();
@@ -40,6 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- 3. CUSTOMER LOGIC ---
+    const bookingForm = document.getElementById('booking-form');
+
     const populateBookingDropdown = async () => {
         const select = document.getElementById('service-select');
         const slotSelect = document.getElementById('slot-select');
@@ -78,6 +79,29 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     };
+
+    if (bookingForm) {
+        bookingForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                service: document.getElementById('service-select').value,
+                vehiclePlate: document.getElementById('plate-number').value,
+                slot: document.getElementById('slot-select').value
+            };
+
+            const res = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Booking confirmed!");
+                bookingForm.reset();
+                renderMyOrders();
+            }
+        });
+    }
 
     const renderMyOrders = async () => {
         const orderHistoryBody = document.getElementById('order-history');
@@ -159,9 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
         });
-        if (res.ok) {
-            renderAttendantTasks();
-        }
+        if (res.ok) renderAttendantTasks();
     };
 
     // --- 5. ADMIN LOGIC ---
@@ -230,19 +252,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- 6. UTILITIES & LOGOUT ---
-    const createTd = (text) => {
+    function createTd(text) {
         const td = document.createElement('td');
         td.textContent = text;
         return td;
-    };
+    }
 
-    const createBtn = (text, cls, fn) => {
+    function createBtn(text, cls, fn) {
         const b = document.createElement('button');
         b.textContent = text;
         b.className = cls;
         b.onclick = fn;
         return b;
-    };
+    }
 
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -252,6 +274,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 7. RUN ---
     checkAuth();
 });
