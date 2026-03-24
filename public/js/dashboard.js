@@ -44,21 +44,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const slotSelect = document.getElementById('slot-select');
         if (!select) return;
 
-        // Fetch Services from Admin API
-        const res = await fetch('/api/admin/services');
-        const data = await res.json();
-        if (data.services) {
-            data.services.forEach(svc => {
-                const opt = document.createElement('option');
-                opt.value = svc._id;
-                opt.textContent = `${svc.name} (₦${svc.price})`;
-                select.appendChild(opt);
-            });
+        // Clear existing to avoid duplicates
+        while (select.firstChild) select.removeChild(select.firstChild);
+        
+        // Add a placeholder
+        const placeholder = document.createElement('option');
+        placeholder.value = "";
+        placeholder.textContent = "-- Select Wash Type --";
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        select.appendChild(placeholder);
+
+        try {
+            const res = await fetch('/api/admin/services');
+            const data = await res.json();
+            
+            if (data.services) {
+                data.services.forEach(svc => {
+                    const opt = document.createElement('option');
+                    opt.value = svc._id;
+                    opt.textContent = `${svc.name} (₦${svc.price})`;
+                    select.appendChild(opt);
+                });
+            }
+        } catch (err) {
+            console.error("Failed to load services:", err);
         }
 
         // Available Slots
         const slots = ["09:00 AM", "11:00 AM", "01:00 PM", "03:00 PM", "05:00 PM"];
         if (slotSelect) {
+            while (slotSelect.firstChild) slotSelect.removeChild(slotSelect.firstChild);
             slots.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s;
@@ -71,8 +87,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (bookingForm) {
         bookingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const serviceVal = document.getElementById('service-select').value;
+            
+            if (!serviceVal) {
+                alert("Please select a wash type.");
+                return;
+            }
+
             const payload = {
-                service: document.getElementById('service-select').value,
+                service: serviceVal,
                 vehiclePlate: document.getElementById('plate-number').value,
                 slot: document.getElementById('slot-select').value
             };
