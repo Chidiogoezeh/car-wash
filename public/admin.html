@@ -3,61 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
+    <title>Admin Control - Car Wash</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <nav>
-        <strong>Admin Control Center</strong>
-        <button id="logout-btn" class="btn-danger">Logout</button>
+        <strong>Admin Portal</strong>
+        <button id="logout-btn" class="btn-danger btn-small">Logout</button>
     </nav>
+
     <div class="container">
-        <div class="grid-2">
-            <section class="card">
-                <h4>Manage Wash Types</h4>
-                <form id="service-form" class="mt-1">
-                    <div class="form-group">
-                        <input type="text" id="svc-name" placeholder="e.g., Full Wax" required>
-                    </div>
-                    <div class="form-group">
-                        <input type="number" id="svc-price" placeholder="Price (₦)" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Add Service</button>
-                </form>
-                <div id="services-list-container" class="mt-1"></div>
-            </section>
-            <section class="card">
-                <h4>Create Attendant</h4>
-                <form id="attendant-form" class="mt-1">
-                    <div class="form-group">
-                        <input type="text" id="att-name" placeholder="Full Name" required>
-                    </div>
-                    <div class="form-group">
-                        <input type="email" id="att-email" placeholder="Email Address" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Generate Account</button>
-                </form>
-            </section>
+        <div class="dashboard-toggles mb-2">
+            <button id="toggle-wash" class="btn-toggle active">Wash Types</button>
+            <button id="toggle-staff" class="btn-toggle">Staff Management</button>
+            <button id="toggle-activity" class="btn-toggle">Daily Activity</button>
         </div>
-        <h3 class="mt-2">Daily Activity</h3>
-        <div class="form-group date-picker-container">
-            <label>Search Day:</label>
-            <input type="date" id="activity-date-filter">
-        </div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Plate</th>
-                        <th>Type</th>
-                        <th>Attendant</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="daily-activity-body"></tbody>
-            </table>
-        </div>
+
+        <div id="admin-error-container"></div>
+
+        <section id="section-wash" class="card fade-in">
+            <h4>Manage Wash Types</h4>
+            <form id="service-form" class="mt-1">
+                <div class="form-group">
+                    <label for="svc-name">Service Name</label>
+                    <input type="text" id="svc-name" placeholder="e.g. Full Wax" required>
+                </div>
+                <div class="form-group">
+                    <label for="svc-price">Price (₦)</label>
+                    <input type="number" id="svc-price" placeholder="Price" required>
+                </div>
+                <button type="submit" class="btn-primary">Add Service</button>
+            </form>
+            <div id="services-list-container" class="mt-2"></div>
+        </section>
+
+        <section id="section-staff" class="card fade-in hidden">
+            <h4>Register New Attendant</h4>
+            <form id="attendant-form" class="mt-1">
+                <div class="form-group">
+                    <label for="att-name">Full Name</label>
+                    <input type="text" id="att-name" placeholder="Attendant Name" required>
+                </div>
+                <div class="form-group">
+                    <label for="att-email">Email Address</label>
+                    <input type="email" id="att-email" placeholder="Email Address" required>
+                </div>
+                <button type="submit" class="btn-primary">Generate Staff Account</button>
+            </form>
+        </section>
+
+        <section id="section-activity" class="fade-in hidden">
+            <h3>Daily Operations</h3>
+            <div class="form-group">
+                <label>Filter by Date:</label>
+                <input type="date" id="activity-date-filter">
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Plate</th>
+                            <th>Type</th>
+                            <th>Staff Assigned</th>
+                            <th>Current Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="daily-activity-body"></tbody>
+                </table>
+            </div>
+        </section>
     </div>
+
     <script src="js/dashboard.js"></script>
 </body>
 </html>

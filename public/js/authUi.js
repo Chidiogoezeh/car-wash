@@ -4,53 +4,80 @@ document.addEventListener('DOMContentLoaded', () => {
     const staffToggleBtn = document.getElementById('staff-toggle-btn');
     const emailInput = document.getElementById('email');
 
-    // --- 1. STAFF ACCESS LOGIC (Requirement #10) ---
+    /**
+     * Helper to show messages/errors without using innerHTML
+     */
+    const showFeedback = (message, isError = true) => {
+        // Look for existing banner or create one
+        let banner = document.getElementById('auth-feedback');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'auth-feedback';
+            const container = document.querySelector('main') || document.querySelector('.card');
+            container.prepend(banner);
+        }
+        
+        banner.textContent = message;
+        banner.className = isError ? 'feedback-error' : 'feedback-success';
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            banner.remove();
+        }, 5000);
+    };
+
+    // --- 1. STAFF ACCESS LOGIC ---
     if (staffToggleBtn) {
         staffToggleBtn.addEventListener('click', () => {
-            // Check if fields are empty before submitting
-            const email = document.getElementById('email').value;
+            const email = emailInput.value;
             const password = document.getElementById('password').value;
 
             if (!email || !password) {
-                alert("Please enter your staff credentials above first.");
+                showFeedback("Please enter your staff credentials in the fields above.");
                 emailInput.focus();
             } else {
-                // Manually trigger the form submission logic
+                // Triggers the standard login submission logic
                 loginForm.requestSubmit(); 
             }
         });
     }
 
     // --- 2. DEVICE FINGERPRINT LOGIC ---
+    // Rebranded key from 'sparkle_device_id' to 'carwash_device_id'
     const getDeviceFingerprint = () => {
-        let id = localStorage.getItem('sparkle_device_id');
+        let id = localStorage.getItem('carwash_device_id');
         if (!id) {
-            id = 'dev-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
-            localStorage.setItem('sparkle_device_id', id);
+            id = `dev-${Math.random().toString(36).substring(2, 11)}-${Date.now()}`;
+            localStorage.setItem('carwash_device_id', id);
         }
         return id;
     };
 
-    // --- 3. LOGIN LOGIC (Unified for all roles) ---
+    // --- 3. LOGIN LOGIC ---
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = emailInput.value;
-            const password = document.getElementById('password').value;
+            
+            // Disable button to prevent double submission
+            const submitBtn = loginForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+
+            const payload = {
+                email: emailInput.value,
+                password: document.getElementById('password').value
+            };
 
             try {
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify(payload)
                 });
                 
                 const data = await res.json();
                 
                 if (data.success) {
-                    /** * Requirement #10 & #12: Redirection Logic
-                     * Opens the correct page directly based on role returned by backend
-                     */
+                    // Role-based redirection
                     const role = data.user.role;
                     if (role === 'admin') {
                         window.location.href = 'admin.html';
@@ -60,20 +87,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.location.href = 'customer.html';
                     }
                 } else {
-                    alert(data.message || "Invalid email or password.");
+                    showFeedback(data.message || "Invalid email or password.");
                 }
             } catch (err) {
                 console.error("Login Error:", err);
-                alert("Server connection failed. Please check your internet.");
+                showFeedback("Connection failed. Please check your internet.");
+            } finally {
+                submitBtn.disabled = false;
             }
         });
     }
 
-    // --- 4. REGISTRATION LOGIC (Customer only) ---
+    // --- 4. REGISTRATION LOGIC ---
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            const submitBtn = registerForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+
             const payload = {
                 username: document.getElementById('reg-username').value,
                 email: document.getElementById('reg-email').value,
@@ -91,15 +123,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
                 
                 if (data.success) {
-                    alert("Registration successful! You may now log in.");
+                    // Store a temporary success message in session storage to show on index.html
+                    sessionStorage.setItem('reg_success', 'true');
                     window.location.href = 'index.html';
                 } else {
-                    alert(data.message); 
+                    showFeedback(data.message || "Registration failed.");
                 }
             } catch (err) {
                 console.error("Registration Error:", err);
-                alert("Registration failed. Please try again.");
+                showFeedback("Unable to register. Please try again later.");
+            } finally {
+                submitBtn.disabled = false;
             }
         });
+    }
+
+    // Check for success message from registration redirect
+    if (window.location.pathname.endsWith('index.html') && sessionStorage.getItem('reg_success')) {
+        showFeedback("Account created! You can now log in.", false);
+        sessionStorage.removeItem('reg_success');
     }
 });

@@ -3,32 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sparkle Wash</title>
+    <title>Login - Car Wash</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="auth-wrapper">
-    <main class="card text-center">
-        <h1>Welcome to Our Car Wash</h1>
+    <main class="card text-center fade-in">
+        <h1>Welcome to Car Wash</h1>
         <p class="text-muted">Please login to your account</p>
         
+        <div id="login-error" class="error-container mt-1"></div>
+
         <form id="login-form" class="mt-1">
             <div class="form-group">
                 <label for="email" class="sr-only">Email Address</label>
-                <input type="email" id="email" placeholder="Email Address" required>
+                <input type="email" id="email" placeholder="Email Address" required autocomplete="email">
             </div>
             <div class="form-group">
                 <label for="password" class="sr-only">Password</label>
-                <input type="password" id="password" placeholder="Password" required>
+                <input type="password" id="password" placeholder="Password" required autocomplete="current-password">
             </div>
-            <button type="submit" class="btn-primary">Login</button>
+            <button type="submit" class="btn-primary w-100">Login</button>
         </form>
 
         <div class="mt-1">
-            <p>New user? <a href="register.html">Create an account</a></p>
+            <p class="text-sm">New user? <a href="register.html">Create an account</a></p>
         </div>
 
         <div class="bottom-right-links">
-            <button id="staff-toggle-btn" class="btn-small">Admin & Attendant Login</button>
+            <button id="staff-toggle-btn" class="btn-small btn-secondary">Admin & Staff Portal</button>
         </div>
     </main>
 

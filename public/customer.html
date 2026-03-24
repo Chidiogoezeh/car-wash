@@ -3,55 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Dashboard</title>
+    <title>Customer Dashboard - Car Wash</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <nav>
-        <strong>Sparkle Wash</strong>
+        <strong>Car Wash</strong>
         <div>
             <span id="user-display"></span>
-            <button id="logout-btn" class="btn-danger">Logout</button>
+            <button id="logout-btn" class="btn-danger btn-small">Logout</button>
         </div>
     </nav>
+
     <div class="container">
-        <section class="card mb-2">
-            <h3>Book a Service</h3>
-            <form id="booking-form" class="grid-3 mt-1">
+        <div class="dashboard-toggles mb-2">
+            <button id="toggle-booking" class="btn-toggle active">Book a Service</button>
+            <button id="toggle-status" class="btn-toggle">Service Status</button>
+        </div>
+
+        <div id="message-container"></div>
+
+        <section id="section-booking" class="card fade-in">
+            <h3>New Booking</h3>
+            <form id="booking-form" class="mt-1">
                 <div class="form-group">
-                    <label>Wash Type</label>
+                    <label for="service-select">Wash Type</label>
                     <select id="service-select" required></select>
                 </div>
                 <div class="form-group">
-                    <label>Slot</label>
+                    <label for="slot-select">Preferred Slot</label>
                     <select id="slot-select" required></select>
                 </div>
                 <div class="form-group">
-                    <label>Plate Number</label>
+                    <label for="plate-number">Vehicle Plate Number</label>
                     <input type="text" id="plate-number" placeholder="e.g. LAG-123" required>
                 </div>
-                <button type="submit" class="btn-success">Confirm Booking</button>
+                <button type="submit" class="btn-success w-100">Confirm Booking</button>
             </form>
         </section>
-        <h3>Service Status</h3>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Plate</th>
-                        <th>Service</th>
-                        <th>Status</th>
-                        <th>Notification / Payment</th>
-                    </tr>
-                </thead>
-                <tbody id="order-history"></tbody>
-            </table>
-        </div>
-        <div class="footer-actions mt-3">
-            <button id="delete-account-btn" class="btn-outline-danger">Request Account Deletion</button>
-            <p class="text-muted text-xs mt-1">Accounts are permanently wiped 30 days after deletion request.</p>
+
+        <section id="section-status" class="card fade-in hidden">
+            <h3>Ongoing & Past Activities</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Plate</th>
+                            <th>Service</th>
+                            <th>Status</th>
+                            <th>Action / Payment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="order-history"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="danger-zone mt-3">
+            <h4>Account Management</h4>
+            <p class="text-muted text-xs">Danger Zone: Account data is permanently wiped 30 days after request.</p>
+            <button id="delete-account-btn" class="btn-outline-danger mt-1">Request Account Deletion</button>
+            <p id="deletion-notice" class="text-muted text-xs mt-1 hidden">Your deletion request has been logged.</p>
         </div>
     </div>
+
     <script src="js/dashboard.js"></script>
 </body>
 </html>
