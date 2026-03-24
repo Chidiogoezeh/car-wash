@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Dashboard - Car Wash</title>
+    <title>Customer Dashboard</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <nav>
-        <strong>Car Wash</strong>
+        <div class="nav-brand">
+            <strong>Car Wash</strong>
+        </div>
         <div>
             <span id="user-display"></span>
             <button id="logout-btn" class="btn-danger btn-small">Logout</button>
@@ -28,42 +30,51 @@
             <form id="booking-form" class="mt-1">
                 <div class="form-group">
                     <label for="service-select">Wash Type</label>
-                    <select id="service-select" required></select>
+                    <select id="service-select" required>
+                        <option value="" disabled selected>Loading services...</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="slot-select">Preferred Slot</label>
-                    <select id="slot-select" required></select>
+                    <select id="slot-select" required>
+                        <option value="" disabled selected>Select a slot</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="plate-number">Vehicle Plate Number</label>
-                    <input type="text" id="plate-number" placeholder="e.g. LAG-123" required>
+                    <input type="text" id="plate-number" placeholder="e.g. LAG-123-ABC" required>
                 </div>
-                <button type="submit" class="btn-success w-100">Confirm Booking</button>
+                <button type="submit" class="btn-success">Confirm Booking</button>
             </form>
         </section>
 
         <section id="section-status" class="card fade-in hidden">
             <h3>Ongoing & Past Activities</h3>
-            <div class="table-container">
+            <div class="table-container mt-1">
                 <table>
                     <thead>
                         <tr>
                             <th>Plate</th>
                             <th>Service</th>
                             <th>Status</th>
-                            <th>Action / Payment</th>
+                            <th>Payment</th>
                         </tr>
                     </thead>
-                    <tbody id="order-history"></tbody>
+                    <tbody id="order-history">
+                        </tbody>
                 </table>
             </div>
         </section>
 
-        <div class="danger-zone mt-3">
-            <h4>Account Management</h4>
-            <p class="text-muted text-xs">Danger Zone: Account data is permanently wiped 30 days after request.</p>
-            <button id="delete-account-btn" class="btn-outline-danger mt-1">Request Account Deletion</button>
-            <p id="deletion-notice" class="text-muted text-xs mt-1 hidden">Your deletion request has been logged.</p>
+        <div class="card mt-2">
+            <h4 style="color: var(--danger);">Danger Zone</h4>
+            <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 1rem;">
+                Account data is permanently wiped 30 days after a deletion request.
+            </p>
+            <button id="delete-account-btn" class="btn-small btn-danger">Request Account Deletion</button>
+            <p id="deletion-notice" class="hidden mt-1" style="color: var(--warning); font-size: 0.8rem;">
+                Your deletion request has been logged and is being processed.
+            </p>
         </div>
     </div>
 

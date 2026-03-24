@@ -3,30 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff Portal - Car Wash</title>
+    <title>Staff Portal</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <nav>
         <div class="nav-brand">
             <strong>Car Wash</strong>
-            <span class="badge-staff">Staff</span>
+            <span class="status-badge status-completed">Staff</span>
         </div>
         <button id="logout-btn" class="btn-danger btn-small">Logout</button>
     </nav>
 
     <div class="container">
-        <div class="dashboard-toggles mb-2">
+        <div class="dashboard-toggles">
             <button id="toggle-tasks" class="btn-toggle active">Active Tasks</button>
             <button id="toggle-settings" class="btn-toggle">Account Settings</button>
         </div>
 
         <div id="staff-error-container"></div>
 
-        <section id="section-tasks" class="fade-in">
+        <section id="section-tasks" class="card">
             <div class="flex-between">
                 <h3>My Assigned Tasks</h3>
-                <button id="refresh-tasks" class="btn-small btn-outline-primary">Refresh</button>
             </div>
             
             <div class="table-container mt-1">
@@ -35,8 +34,7 @@
                         <tr>
                             <th>Plate</th>
                             <th>Wash Type</th>
-                            <th>Progress</th>
-                            <th>Actions</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody id="attendant-tasks">
@@ -45,17 +43,16 @@
             </div>
         </section>
 
-        <section id="section-settings" class="card fade-in hidden">
+        <section id="section-settings" class="card hidden">
             <h4>Security Settings</h4>
-            <p class="text-muted text-xs mb-1">Update your login credentials below.</p>
+            <p class="mb-2">Update your login credentials below.</p>
             
             <div class="form-group">
                 <label for="new-password">New Password</label>
-                <input type="password" id="new-password" placeholder="Enter at least 8 characters">
+                <input type="password" id="new-password" placeholder="Min. 8 characters">
             </div>
-            <button id="save-pass-btn" class="btn-primary w-100">Update Password</button>
             
-            <p id="password-feedback" class="text-xs mt-1 hidden"></p>
+            <button id="save-pass-btn" class="btn-primary">Update Password</button>
         </section>
     </div>
 

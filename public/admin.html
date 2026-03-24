@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Control - Car Wash</title>
+    <title>Admin</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <nav>
         <strong>Admin Portal</strong>
-        <button id="logout-btn" class="btn-danger btn-small">Logout</button>
+        <div>
+            <span id="user-display"></span>
+            <button id="logout-btn" class="btn-danger btn-small">Logout</button>
+        </div>
     </nav>
 
     <div class="container">
@@ -21,54 +24,73 @@
 
         <div id="admin-error-container"></div>
 
-        <section id="section-wash" class="card fade-in">
-            <h4>Manage Wash Types</h4>
+        <section id="section-wash" class="card">
+            <h4>Manage Services</h4>
+            <p class="text-muted mb-1">Add or update types of washes available to customers.</p>
+            
             <form id="service-form" class="mt-1">
-                <div class="form-group">
-                    <label for="svc-name">Service Name</label>
-                    <input type="text" id="svc-name" placeholder="e.g. Full Wax" required>
-                </div>
-                <div class="form-group">
-                    <label for="svc-price">Price (₦)</label>
-                    <input type="number" id="svc-price" placeholder="Price" required>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="svc-name">Service Name</label>
+                        <input type="text" id="svc-name" placeholder="e.g. Executive Interior" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="svc-price">Price (₦)</label>
+                        <input type="number" id="svc-price" placeholder="5000" required>
+                    </div>
                 </div>
                 <button type="submit" class="btn-primary">Add Service</button>
             </form>
-            <div id="services-list-container" class="mt-2"></div>
+
+            <div class="mt-2">
+                <h5>Current Services</h5>
+                <div id="services-list-container" class="mt-1">
+                    </div>
+            </div>
         </section>
 
-        <section id="section-staff" class="card fade-in hidden">
+        <section id="section-staff" class="card hidden">
             <h4>Register New Attendant</h4>
+            <p class="text-muted mb-1">Create accounts for car wash staff members.</p>
+            
             <form id="attendant-form" class="mt-1">
                 <div class="form-group">
                     <label for="att-name">Full Name</label>
-                    <input type="text" id="att-name" placeholder="Attendant Name" required>
+                    <input type="text" id="att-name" placeholder="John Doe" required>
                 </div>
                 <div class="form-group">
                     <label for="att-email">Email Address</label>
-                    <input type="email" id="att-email" placeholder="Email Address" required>
+                    <input type="email" id="att-email" placeholder="staff@carwash.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="att-password">Temporary Password</label>
+                    <input type="password" id="att-password" placeholder="Min 8 characters" required>
                 </div>
                 <button type="submit" class="btn-primary">Generate Staff Account</button>
             </form>
         </section>
 
-        <section id="section-activity" class="fade-in hidden">
-            <h3>Daily Operations</h3>
-            <div class="form-group">
-                <label>Filter by Date:</label>
-                <input type="date" id="activity-date-filter">
+        <section id="section-activity" class="hidden">
+            <div class="card">
+                <h3>Operations Log</h3>
+                <div class="form-group mt-1">
+                    <label for="activity-date-filter">Filter by Date:</label>
+                    <input type="date" id="activity-date-filter">
+                </div>
             </div>
-            <div class="table-container">
+
+            <div class="table-container mt-1">
                 <table>
                     <thead>
                         <tr>
-                            <th>Plate</th>
-                            <th>Type</th>
+                            <th>Plate Number</th>
+                            <th>Wash Type</th>
                             <th>Staff Assigned</th>
-                            <th>Current Status</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
-                    <tbody id="daily-activity-body"></tbody>
+                    <tbody id="daily-activity-body">
+                        </tbody>
                 </table>
             </div>
         </section>

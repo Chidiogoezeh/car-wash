@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- 1. ELEMENT SELECTIONS ---
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
     const staffToggleBtn = document.getElementById('staff-toggle-btn');
@@ -8,12 +9,14 @@ document.addEventListener('DOMContentLoaded', () => {
      * Helper to show messages/errors without using innerHTML
      */
     const showFeedback = (message, isError = true) => {
-        // Look for existing banner or create one
         let banner = document.getElementById('auth-feedback');
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'auth-feedback';
-            const container = document.querySelector('main') || document.querySelector('.card');
+            // Prepend to the visible card or container
+            const container = document.querySelector('.login-container') || 
+                              document.querySelector('.card') || 
+                              document.body;
             container.prepend(banner);
         }
         
@@ -22,28 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Auto-hide after 5 seconds
         setTimeout(() => {
-            banner.remove();
+            if (banner && banner.parentElement) banner.remove();
         }, 5000);
     };
 
-    // --- 1. STAFF ACCESS LOGIC ---
-    if (staffToggleBtn) {
-        staffToggleBtn.addEventListener('click', () => {
-            const email = emailInput.value;
-            const password = document.getElementById('password').value;
-
-            if (!email || !password) {
-                showFeedback("Please enter your staff credentials in the fields above.");
-                emailInput.focus();
-            } else {
-                // Triggers the standard login submission logic
-                loginForm.requestSubmit(); 
-            }
-        });
-    }
-
     // --- 2. DEVICE FINGERPRINT LOGIC ---
-    // Rebranded key from 'sparkle_device_id' to 'carwash_device_id'
     const getDeviceFingerprint = () => {
         let id = localStorage.getItem('carwash_device_id');
         if (!id) {
@@ -53,14 +39,28 @@ document.addEventListener('DOMContentLoaded', () => {
         return id;
     };
 
-    // --- 3. LOGIN LOGIC ---
+    // --- 3. STAFF ACCESS LOGIC ---
+    if (staffToggleBtn && loginForm) {
+        staffToggleBtn.addEventListener('click', () => {
+            const email = emailInput ? emailInput.value : '';
+            const password = document.getElementById('password')?.value;
+
+            if (!email || !password) {
+                showFeedback("Please enter your staff credentials in the fields above.");
+                emailInput?.focus();
+            } else {
+                loginForm.requestSubmit(); 
+            }
+        });
+    }
+
+    // --- 4. LOGIN LOGIC ---
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Disable button to prevent double submission
             const submitBtn = loginForm.querySelector('button[type="submit"]');
-            submitBtn.disabled = true;
+            if (submitBtn) submitBtn.disabled = true;
 
             const payload = {
                 email: emailInput.value,
@@ -77,8 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
                 
                 if (data.success) {
-                    // Role-based redirection
                     const role = data.user.role;
+                    // Redirection based on role
                     if (role === 'admin') {
                         window.location.href = 'admin.html';
                     } else if (role === 'attendant') {
@@ -90,21 +90,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     showFeedback(data.message || "Invalid email or password.");
                 }
             } catch (err) {
-                console.error("Login Error:", err);
                 showFeedback("Connection failed. Please check your internet.");
             } finally {
-                submitBtn.disabled = false;
+                if (submitBtn) submitBtn.disabled = false;
             }
         });
     }
 
-    // --- 4. REGISTRATION LOGIC ---
+    // --- 5. REGISTRATION LOGIC ---
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const submitBtn = registerForm.querySelector('button[type="submit"]');
-            submitBtn.disabled = true;
+            if (submitBtn) submitBtn.disabled = true;
 
             const payload = {
                 username: document.getElementById('reg-username').value,
@@ -123,23 +122,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
                 
                 if (data.success) {
-                    // Store a temporary success message in session storage to show on index.html
                     sessionStorage.setItem('reg_success', 'true');
                     window.location.href = 'index.html';
                 } else {
                     showFeedback(data.message || "Registration failed.");
                 }
             } catch (err) {
-                console.error("Registration Error:", err);
                 showFeedback("Unable to register. Please try again later.");
             } finally {
-                submitBtn.disabled = false;
+                if (submitBtn) submitBtn.disabled = false;
             }
         });
     }
 
-    // Check for success message from registration redirect
-    if (window.location.pathname.endsWith('index.html') && sessionStorage.getItem('reg_success')) {
+    // --- 6. INITIALIZATION CHECKS ---
+    const isIndexPage = window.location.pathname.endsWith('index.html') || 
+                        window.location.pathname === '/';
+
+    if (isIndexPage && sessionStorage.getItem('reg_success')) {
         showFeedback("Account created! You can now log in.", false);
         sessionStorage.removeItem('reg_success');
     }
