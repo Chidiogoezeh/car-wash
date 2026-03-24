@@ -1,25 +1,32 @@
 import User from '../models/User.js';
 import Service from '../models/Service.js';
+import Order from '../models/Order.js'; // Added to track orders
 import AuditLog from '../models/AuditLog.js';
 
 export const createAttendant = async (req, res) => {
     try {
         const { username, email } = req.body;
-        
-        // Admin creates attendant
-        // We set a default password that they can change later
         await User.create({ 
             username, 
             email, 
             password: 'ChangeMe123!', 
             role: 'attendant', 
             isApproved: true,
-            deviceId: `STAFF_${Date.now()}` // Unique system ID for staff
+            deviceId: `STAFF_${Date.now()}`
         });
-
         res.json({ success: true, message: "Attendant account created with default password: ChangeMe123!" });
     } catch (err) {
         res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+// NEW: For populating assignment dropdowns
+export const getAttendants = async (req, res) => {
+    try {
+        const staff = await User.find({ role: 'attendant', isApproved: true }).select('username _id');
+        res.json({ success: true, attendants: staff });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Failed to fetch attendants" });
     }
 };
 
@@ -32,14 +39,24 @@ export const addService = async (req, res) => {
     }
 };
 
-/** * Added this to satisfy the frontend renderServices() call
- */
 export const getServices = async (req, res) => {
     try {
         const services = await Service.find({ isActive: true });
         res.json({ success: true, services });
     } catch (err) {
         res.status(500).json({ success: false, message: "Failed to fetch services" });
+    }
+};
+
+// Admin "Daily Activity" table
+export const getAllOrders = async (req, res) => {
+    try {
+        const orders = await Order.find()
+            .populate('service customer attendant')
+            .sort('-createdAt');
+        res.json({ success: true, data: orders });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Failed to fetch orders" });
     }
 };
 

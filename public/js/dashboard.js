@@ -23,11 +23,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderAttendantTasks();
             } else if (data.user.role === 'admin') {
                 renderServices();
-                renderDailyActivity(); // Admin sees all tasks
+                renderDailyActivity(); 
             }
             
             return data.user;
         } catch (err) {
+            console.error("Auth Error:", err);
             if (!window.location.pathname.endsWith('index.html')) {
                 window.location.href = 'index.html';
             }
@@ -43,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const slotSelect = document.getElementById('slot-select');
         if (!select) return;
 
-        // Fetch Services
+        // Fetch Services from Admin API
         const res = await fetch('/api/admin/services');
         const data = await res.json();
         if (data.services) {
@@ -55,14 +56,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Static slots for example (Requirement: available slots)
-        const slots = ["09:00 AM", "11:00 AM", "01:00 PM", "03:00 PM"];
-        slots.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s;
-            opt.textContent = s;
-            slotSelect.appendChild(opt);
-        });
+        // Available Slots
+        const slots = ["09:00 AM", "11:00 AM", "01:00 PM", "03:00 PM", "05:00 PM"];
+        if (slotSelect) {
+            slots.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                slotSelect.appendChild(opt);
+            });
+        }
     };
 
     if (bookingForm) {
@@ -93,7 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch('/api/orders/my-orders');
         const data = await res.json();
 
-        while (orderHistoryBody.firstChild) { orderHistoryBody.removeChild(orderHistoryBody.firstChild); }
+        while (orderHistoryBody.firstChild) { 
+            orderHistoryBody.removeChild(orderHistoryBody.firstChild); 
+        }
 
         if (data.data) {
             data.data.forEach(order => {
@@ -108,11 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const statusTd = document.createElement('td');
                 const badge = document.createElement('span');
                 badge.textContent = order.status.toUpperCase();
-                badge.className = `badge-${order.status}`; // Add CSS classes for colors
+                badge.className = `badge-${order.status}`; 
                 statusTd.appendChild(badge);
 
                 const actionTd = document.createElement('td');
-                actionTd.textContent = order.status === 'completed' ? 'Paid & Notified' : 'Pending...';
+                actionTd.textContent = order.status === 'completed' ? 'Paid & Notified' : 'Processing...';
 
                 tr.append(plateTd, serviceTd, statusTd, actionTd);
                 orderHistoryBody.appendChild(tr);
@@ -128,12 +133,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch('/api/tasks/my-tasks'); 
         const data = await res.json();
 
-        while (attendantTaskBody.firstChild) { attendantTaskBody.removeChild(attendantTaskBody.firstChild); }
+        while (attendantTaskBody.firstChild) { 
+            attendantTaskBody.removeChild(attendantTaskBody.firstChild); 
+        }
 
         if (data.data) {
             data.data.forEach(task => {
                 const tr = document.createElement('tr');
-                
                 const plateTd = document.createElement('td');
                 plateTd.textContent = task.vehiclePlate;
                 
@@ -141,23 +147,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 typeTd.textContent = task.service ? task.service.name : 'N/A';
                 
                 const progressTd = document.createElement('td');
-                progressTd.textContent = task.status;
+                progressTd.textContent = task.status.toUpperCase();
 
                 const actionTd = document.createElement('td');
-                const btn = document.createElement('button');
-                btn.className = "btn-small";
-                
                 if (task.status === 'assigned') {
+                    const btn = document.createElement('button');
                     btn.textContent = "Start Wash";
+                    btn.className = "btn-small";
                     btn.onclick = () => updateTaskStatus(task._id, 'started');
                     actionTd.appendChild(btn);
                 } else if (task.status === 'started') {
-                    btn.textContent = "Complete";
+                    const btn = document.createElement('button');
+                    btn.textContent = "Mark Complete";
                     btn.className = "btn-small btn-success";
                     btn.onclick = () => updateTaskStatus(task._id, 'completed');
                     actionTd.appendChild(btn);
                 } else {
-                    actionTd.textContent = "✓ Finished";
+                    actionTd.textContent = "✓ Task Finished";
                 }
 
                 tr.append(plateTd, typeTd, progressTd, actionTd);
@@ -166,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.updateTaskStatus = async (taskId, newStatus) => {
+    const updateTaskStatus = async (taskId, newStatus) => {
         const res = await fetch(`/api/tasks/status/${taskId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -179,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- 4. ADMIN: DAILY ACTIVITY & SERVICES ---
+    // --- 4. ADMIN: MANAGEMENT & ASSIGNMENT ---
     const serviceList = document.getElementById('services-list-container');
     const activityBody = document.getElementById('daily-activity-body');
 
@@ -195,6 +201,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 div.textContent = `${svc.name} - ₦${svc.price}`;
                 serviceList.appendChild(div);
             });
+        }
+    };
+
+    const renderDailyActivity = async () => {
+        if (!activityBody) return;
+
+        const [orderRes, staffRes] = await Promise.all([
+            fetch('/api/admin/orders'),
+            fetch('/api/admin/attendants')
+        ]);
+        
+        const orders = await orderRes.json();
+        const staff = await staffRes.json();
+
+        while (activityBody.firstChild) { activityBody.removeChild(activityBody.firstChild); }
+
+        if (orders.data) {
+            orders.data.forEach(order => {
+                const tr = document.createElement('tr');
+                const plateTd = document.createElement('td');
+                plateTd.textContent = order.vehiclePlate;
+                
+                const typeTd = document.createElement('td');
+                typeTd.textContent = order.service?.name || 'N/A';
+                
+                const staffTd = document.createElement('td');
+                if (order.status === 'pending') {
+                    const select = document.createElement('select');
+                    const defOpt = document.createElement('option');
+                    defOpt.textContent = "Assign Attendant...";
+                    select.appendChild(defOpt);
+
+                    staff.attendants?.forEach(att => {
+                        const opt = document.createElement('option');
+                        opt.value = att._id;
+                        opt.textContent = att.username;
+                        select.appendChild(opt);
+                    });
+
+                    select.onchange = (e) => assignOrder(order._id, e.target.value);
+                    staffTd.appendChild(select);
+                } else {
+                    staffTd.textContent = order.attendant?.username || 'Unassigned';
+                }
+
+                const statusTd = document.createElement('td');
+                statusTd.textContent = order.status.toUpperCase();
+
+                tr.append(plateTd, typeTd, staffTd, statusTd);
+                activityBody.appendChild(tr);
+            });
+        }
+    };
+
+    const assignOrder = async (orderId, attendantId) => {
+        if (!attendantId) return;
+        const res = await fetch('/api/tasks/assign', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId, attendantId })
+        });
+        if (res.ok) {
+            alert("Attendant assigned successfully!");
+            renderDailyActivity();
         }
     };
 
