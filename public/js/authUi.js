@@ -6,14 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const emailInput = document.getElementById('email');
 
     /**
-     * Helper to show messages/errors without using innerHTML
+     * Helper to show messages/errors without using alerts
      */
     const showFeedback = (message, isError = true) => {
         let banner = document.getElementById('auth-feedback');
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'auth-feedback';
-            // Prepend to the visible card or container
+            // Prepend to the visible container
             const container = document.querySelector('.login-container') || 
                               document.querySelector('.card') || 
                               document.body;
@@ -29,32 +29,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 5000);
     };
 
-    // --- 2. DEVICE FINGERPRINT LOGIC ---
-    const getDeviceFingerprint = () => {
-        let id = localStorage.getItem('carwash_device_id');
-        if (!id) {
-            id = `dev-${Math.random().toString(36).substring(2, 11)}-${Date.now()}`;
-            localStorage.setItem('carwash_device_id', id);
-        }
-        return id;
-    };
-
-    // --- 3. STAFF ACCESS LOGIC ---
+    // --- 2. STAFF ACCESS TOGGLE ---
+    // This allows the "Staff Access" button to trigger the same logic as the login button
     if (staffToggleBtn && loginForm) {
         staffToggleBtn.addEventListener('click', () => {
             const email = emailInput ? emailInput.value : '';
             const password = document.getElementById('password')?.value;
 
             if (!email || !password) {
-                showFeedback("Please enter your staff credentials in the fields above.");
+                showFeedback("Please enter staff credentials first.");
                 emailInput?.focus();
             } else {
+                // Programmatically trigger the submit event on the login form
                 loginForm.requestSubmit(); 
             }
         });
     }
 
-    // --- 4. LOGIN LOGIC ---
+    // --- 3. LOGIN LOGIC ---
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -71,33 +63,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    // CRITICAL: Tells the browser to save the 'token' cookie returned by the server
+                    credentials: 'include' 
+                }, {
                     body: JSON.stringify(payload)
                 });
                 
                 const data = await res.json();
                 
                 if (data.success) {
+                    // Redirect based on role provided by backend
                     const role = data.user.role;
-                    // Redirection based on role
-                    if (role === 'admin') {
-                        window.location.href = 'admin.html';
-                    } else if (role === 'attendant') {
-                        window.location.href = 'attendant.html';
-                    } else {
-                        window.location.href = 'customer.html';
-                    }
+                    if (role === 'admin') window.location.replace('/admin.html');
+                    else if (role === 'attendant') window.location.replace('/attendant.html');
+                    else window.location.replace('/customer.html');
                 } else {
                     showFeedback(data.message || "Invalid email or password.");
                 }
             } catch (err) {
-                showFeedback("Connection failed. Please check your internet.");
+                showFeedback("Connection failed. Check your internet or server status.");
             } finally {
                 if (submitBtn) submitBtn.disabled = false;
             }
         });
     }
 
-    // --- 5. REGISTRATION LOGIC ---
+    // --- 4. REGISTRATION LOGIC ---
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -105,25 +96,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const submitBtn = registerForm.querySelector('button[type="submit"]');
             if (submitBtn) submitBtn.disabled = true;
 
+            // We are no longer sending deviceId to avoid the duplicate key error in MongoDB
             const payload = {
                 username: document.getElementById('reg-username').value,
                 email: document.getElementById('reg-email').value,
-                password: document.getElementById('reg-password').value,
-                deviceId: getDeviceFingerprint() 
+                password: document.getElementById('reg-password').value
             };
 
             try {
                 const res = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                }, {
                     body: JSON.stringify(payload)
                 });
                 
                 const data = await res.json();
                 
                 if (data.success) {
+                    // Store success flag in sessionStorage to show message after redirect
                     sessionStorage.setItem('reg_success', 'true');
-                    window.location.href = 'index.html';
+                    window.location.href = '/index.html';
                 } else {
                     showFeedback(data.message || "Registration failed.");
                 }
@@ -135,12 +129,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 6. INITIALIZATION CHECKS ---
-    const isIndexPage = window.location.pathname.endsWith('index.html') || 
-                        window.location.pathname === '/';
+    // --- 5. POST-REGISTRATION FEEDBACK ---
+    // Check if we just redirected from a successful registration
+    const isLoginPage = window.location.pathname.endsWith('index.html') || 
+                        window.location.pathname === '/' ||
+                        window.location.pathname.endsWith('login.html');
 
-    if (isIndexPage && sessionStorage.getItem('reg_success')) {
-        showFeedback("Account created! You can now log in.", false);
+    if (isLoginPage && sessionStorage.getItem('reg_success')) {
+        showFeedback("Account created successfully! You can now log in.", false);
         sessionStorage.removeItem('reg_success');
     }
 });

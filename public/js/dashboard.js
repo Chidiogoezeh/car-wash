@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // Initialize Toggles for all three possible dashboards
+    // Initialize Toggles for different dashboards
     setupToggles(['toggle-booking', 'toggle-status'], ['section-booking', 'section-status']);
     setupToggles(['toggle-tasks', 'toggle-settings'], ['section-tasks', 'section-settings']);
     setupToggles(['toggle-wash', 'toggle-staff', 'toggle-activity'], ['section-wash', 'section-staff', 'section-activity']);
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         div.textContent = message;
         container.appendChild(div);
         
-        setTimeout(() => div.remove(), 5000);
+        setTimeout(() => { if(div) div.remove(); }, 5000);
     };
 
     const createCell = (text) => {
@@ -47,22 +47,42 @@ document.addEventListener('DOMContentLoaded', () => {
         return td;
     };
 
-    // --- 3. AUTHENTICATION & ROLE PROTECTION ---
+    // --- 3. AUTHENTICATION & ROLE PROTECTION (FIXED LOOP) ---
     const checkAuth = async () => {
         try {
             const res = await fetch('/api/auth/me');
             const data = await res.json();
             
+            const currentPath = window.location.pathname;
+            const isLoginPage = currentPath.endsWith('index.html') || currentPath === '/';
+
+            // 1. If NOT logged in
             if (!data || !data.success) {
-                window.location.href = 'index.html';
+                if (!isLoginPage) {
+                    window.location.href = 'index.html';
+                }
                 return;
             }
 
+            // 2. If Logged in, verify role-to-path alignment
             const role = data.user.role;
             const display = document.getElementById('user-display');
             if (display) display.textContent = `Welcome, ${data.user.username}`;
 
-            // Initialize views based on role
+            if (role === 'admin' && !currentPath.includes('admin.html')) {
+                window.location.href = 'admin.html';
+                return;
+            } 
+            if (role === 'attendant' && !currentPath.includes('attendant.html')) {
+                window.location.href = 'attendant.html';
+                return;
+            }
+            if (role === 'customer' && !currentPath.includes('customer.html')) {
+                // Only redirect if they are on the login page
+                if (isLoginPage) window.location.href = 'customer.html';
+            }
+
+            // 3. Initialize specific dashboard views
             if (role === 'customer') {
                 populateCustomerDropdowns();
                 renderOrderHistory();
@@ -88,14 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/admin/services');
             const data = await res.json();
 
-            // Clear and populate Service Dropdown
-            svcSelect.textContent = ''; 
-            const defaultOpt = document.createElement('option');
-            defaultOpt.textContent = "Select Wash Type";
-            defaultOpt.disabled = true;
-            defaultOpt.selected = true;
-            svcSelect.appendChild(defaultOpt);
-
+            svcSelect.innerHTML = '<option disabled selected>Select Wash Type</option>'; 
             data.services.forEach(svc => {
                 const opt = document.createElement('option');
                 opt.value = svc._id;
@@ -103,18 +116,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 svcSelect.appendChild(opt);
             });
 
-            // Populate static slots
             const slots = ["09:00 AM", "12:00 PM", "03:00 PM", "06:00 PM"];
-            slotSelect.textContent = '';
+            slotSelect.innerHTML = '';
             slots.forEach(s => {
                 const opt = document.createElement('option');
-                opt.value = s;
-                opt.textContent = s;
+                opt.value = s; opt.textContent = s;
                 slotSelect.appendChild(opt);
             });
-        } catch (err) {
-            console.error("Dropdown load error:", err);
-        }
+        } catch (err) { console.error("Dropdown load error:", err); }
     };
 
     const setupBookingForm = () => {
@@ -144,9 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     showMessage('message-container', data.message);
                 }
-            } catch (err) {
-                showMessage('message-container', "Booking failed. Try again.");
-            }
+            } catch (err) { showMessage('message-container', "Booking failed."); }
         });
     };
 
@@ -157,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/orders/my-orders');
             const data = await res.json();
-            body.textContent = '';
+            body.innerHTML = '';
 
             data.data.forEach(order => {
                 const tr = document.createElement('tr');
@@ -165,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     createCell(order.vehiclePlate),
                     createCell(order.service?.name),
                     createCell(order.status),
-                    createCell(order.paymentConfirmed ? "PAID" : "PENDING")
+                    createCell(order.paymentConfirmed ? "✅ PAID" : "⏳ PENDING")
                 );
                 body.appendChild(tr);
             });
@@ -180,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/tasks/my-tasks');
             const data = await res.json();
-            body.textContent = '';
+            body.innerHTML = '';
 
             data.data.forEach(task => {
                 const tr = document.createElement('tr');
@@ -202,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/admin/services');
             const data = await res.json();
-            container.textContent = '';
+            container.innerHTML = '';
 
             data.services.forEach(svc => {
                 const div = document.createElement('div');
@@ -218,26 +225,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const filter = document.getElementById('activity-date-filter');
         if (!body || !filter) return;
 
-        const fetchLogs = async () => {
-            const res = await fetch(`/api/admin/logs?date=${filter.value}`);
-            const data = await res.json();
-            body.textContent = '';
+        filter.addEventListener('change', async () => {
+            try {
+                const res = await fetch(`/api/admin/logs?date=${filter.value}`);
+                const data = await res.json();
+                body.innerHTML = '';
 
-            if (data.logs && data.logs.length > 0) {
-                data.logs.forEach(log => {
-                    const tr = document.createElement('tr');
-                    tr.append(
-                        createCell(log.vehiclePlate),
-                        createCell(log.serviceName),
-                        createCell(log.staff),
-                        createCell(log.status)
-                    );
-                    body.appendChild(tr);
-                });
-            }
-        };
-
-        filter.addEventListener('change', fetchLogs);
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        const tr = document.createElement('tr');
+                        // Log schema matches: username, action, ip, status
+                        tr.append(
+                            createCell(log.username),
+                            createCell(log.action),
+                            createCell(log.status),
+                            createCell(new Date(log.createdAt).toLocaleTimeString())
+                        );
+                        body.appendChild(tr);
+                    });
+                } else {
+                    body.innerHTML = '<tr><td colspan="4">No activity found for this date.</td></tr>';
+                }
+            } catch (err) { console.error(err); }
+        });
     };
 
     // --- 7. LOGOUT ---
@@ -249,6 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initialize the app
+    // Run Auth Check
     checkAuth();
 });
