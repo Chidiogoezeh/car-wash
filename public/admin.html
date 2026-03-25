@@ -73,24 +73,20 @@
         <section id="section-activity" class="hidden">
             <div class="card">
                 <h3>Operations Log</h3>
-                <div class="form-group mt-1">
-                    <label for="activity-date-filter">Filter by Date:</label>
-                    <input type="date" id="activity-date-filter">
-                </div>
+                <input type="date" id="activity-date-filter">
             </div>
 
             <div class="table-container mt-1">
                 <table>
                     <thead>
                         <tr>
-                            <th>Plate Number</th>
-                            <th>Wash Type</th>
-                            <th>Staff Assigned</th>
-                            <th>Status</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>IP Address</th>
+                            <th>Time</th>
                         </tr>
                     </thead>
-                    <tbody id="daily-activity-body">
-                        </tbody>
+                    <tbody id="daily-activity-body"></tbody>
                 </table>
             </div>
         </section>

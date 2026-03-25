@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'auth-feedback';
-            // Prepend to the visible container
             const container = document.querySelector('.login-container') || 
                               document.querySelector('.card') || 
                               document.body;
@@ -23,14 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
         banner.textContent = message;
         banner.className = isError ? 'feedback-error' : 'feedback-success';
         
-        // Auto-hide after 5 seconds
         setTimeout(() => {
             if (banner && banner.parentElement) banner.remove();
         }, 5000);
     };
 
     // --- 2. STAFF ACCESS TOGGLE ---
-    // This allows the "Staff Access" button to trigger the same logic as the login button
     if (staffToggleBtn && loginForm) {
         staffToggleBtn.addEventListener('click', () => {
             const email = emailInput ? emailInput.value : '';
@@ -40,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 showFeedback("Please enter staff credentials first.");
                 emailInput?.focus();
             } else {
-                // Programmatically trigger the submit event on the login form
                 loginForm.requestSubmit(); 
             }
         });
@@ -60,19 +56,17 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
+                // FIXED: body is now correctly placed inside the second argument object
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // CRITICAL: Tells the browser to save the 'token' cookie returned by the server
-                    credentials: 'include' 
-                }, {
-                    body: JSON.stringify(payload)
+                    credentials: 'include',
+                    body: JSON.stringify(payload) 
                 });
                 
                 const data = await res.json();
                 
                 if (data.success) {
-                    // Redirect based on role provided by backend
                     const role = data.user.role;
                     if (role === 'admin') window.location.replace('/admin.html');
                     else if (role === 'attendant') window.location.replace('/attendant.html');
@@ -96,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const submitBtn = registerForm.querySelector('button[type="submit"]');
             if (submitBtn) submitBtn.disabled = true;
 
-            // We are no longer sending deviceId to avoid the duplicate key error in MongoDB
             const payload = {
                 username: document.getElementById('reg-username').value,
                 email: document.getElementById('reg-email').value,
@@ -104,18 +97,17 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
+                // FIXED: body is now correctly placed inside the second argument object
                 const res = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include'
-                }, {
+                    credentials: 'include',
                     body: JSON.stringify(payload)
                 });
                 
                 const data = await res.json();
                 
                 if (data.success) {
-                    // Store success flag in sessionStorage to show message after redirect
                     sessionStorage.setItem('reg_success', 'true');
                     window.location.href = '/index.html';
                 } else {
@@ -130,7 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 5. POST-REGISTRATION FEEDBACK ---
-    // Check if we just redirected from a successful registration
     const isLoginPage = window.location.pathname.endsWith('index.html') || 
                         window.location.pathname === '/' ||
                         window.location.pathname.endsWith('login.html');
