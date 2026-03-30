@@ -9,25 +9,37 @@ document.addEventListener('DOMContentLoaded', () => {
         buttons.forEach((btn, index) => {
             if (!btn) return;
             btn.addEventListener('click', () => {
+                // Remove active class from all buttons and hide all sections in this group
                 buttons.forEach(b => b?.classList.remove('active'));
                 sections.forEach(s => s?.classList.add('hidden'));
 
+                // Activate the clicked button and its corresponding section
                 btn.classList.add('active');
                 if (sections[index]) sections[index].classList.remove('hidden');
             });
         });
     };
 
-    setupToggles(['toggle-booking', 'toggle-status'], ['section-booking', 'section-status']);
-    setupToggles(['toggle-tasks', 'toggle-settings'], ['section-tasks', 'section-settings']);
-    setupToggles(['toggle-wash', 'toggle-staff', 'toggle-activity'], ['section-wash', 'section-staff', 'section-activity']);
+    // Initialize Toggles for all User Roles
+    setupToggles(['toggle-booking', 'toggle-status'], ['section-booking', 'section-status']); // Customer
+    setupToggles(['toggle-tasks', 'toggle-settings'], ['section-tasks', 'section-settings']); // Attendant
+    setupToggles(
+        ['toggle-wash', 'toggle-orders', 'toggle-staff', 'toggle-activity'], 
+        ['section-wash', 'section-orders', 'section-staff', 'section-activity']
+    ); // Admin
 
     // --- 2. GLOBAL UTILITIES ---
     const showMessage = (containerId, message, isError = true) => {
         const container = document.getElementById(containerId);
         if (!container) return;
-        container.innerHTML = `<div class="${isError ? 'feedback-error' : 'feedback-success'}">${message}</div>`;
-        setTimeout(() => { container.innerHTML = ''; }, 5000);
+        
+        container.textContent = ''; 
+        const div = document.createElement('div');
+        div.className = isError ? 'feedback-error' : 'feedback-success';
+        div.textContent = message;
+        container.appendChild(div);
+        
+        setTimeout(() => { if (div) div.remove(); }, 5000);
     };
 
     const createCell = (text) => {
@@ -41,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/auth/me');
             const data = await res.json();
-            
             const currentPath = window.location.pathname;
             const isLoginPage = currentPath.endsWith('index.html') || currentPath === '/' || currentPath.endsWith('login.html');
 
@@ -69,13 +80,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 setupAttendantActions();
             } else if (role === 'admin') {
                 renderAdminServices();
-                const today = new Date().toISOString().split('T')[0];
+                renderAdminOrders();
+                setupAdminActions();
                 const filter = document.getElementById('activity-date-filter');
                 if (filter) {
+                    const today = new Date().toISOString().split('T')[0];
                     filter.value = today;
-                    renderDailyActivity(today); 
+                    renderDailyActivity(today);
                 }
-                setupAdminActions();
             }
         } catch (err) {
             console.error("Auth System Error:", err);
@@ -91,8 +103,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/admin/services');
             const data = await res.json();
-            svcSelect.innerHTML = '<option disabled selected>Select Wash Type</option>';
-            data.services.forEach(svc => {
+            
+            svcSelect.textContent = '';
+            const defaultSvc = document.createElement('option');
+            defaultSvc.disabled = true;
+            defaultSvc.selected = true;
+            defaultSvc.textContent = 'Select Wash Type';
+            svcSelect.appendChild(defaultSvc);
+
+            (data.services || []).forEach(svc => {
                 const opt = document.createElement('option');
                 opt.value = svc._id;
                 opt.textContent = `${svc.name} - ₦${Number(svc.price).toLocaleString()}`;
@@ -100,10 +119,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const slots = ["09:00 AM", "12:00 PM", "03:00 PM", "06:00 PM"];
-            slotSelect.innerHTML = '<option disabled selected>Select a slot</option>';
+            slotSelect.textContent = '';
+            const defaultSlot = document.createElement('option');
+            defaultSlot.disabled = true;
+            defaultSlot.selected = true;
+            defaultSlot.textContent = 'Select a slot';
+            slotSelect.appendChild(defaultSlot);
+
             slots.forEach(s => {
                 const opt = document.createElement('option');
-                opt.value = s; opt.textContent = s;
+                opt.value = s; 
+                opt.textContent = s;
                 slotSelect.appendChild(opt);
             });
         } catch (err) { console.error("Dropdown load failure:", err); }
@@ -115,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/orders/my-orders');
             const result = await res.json();
-            body.innerHTML = '';
+            body.textContent = '';
             (result.data || []).forEach(order => {
                 const tr = document.createElement('tr');
                 tr.append(
@@ -126,7 +152,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const payCell = document.createElement('td');
                 if (order.paymentConfirmed) {
-                    payCell.innerHTML = '<span class="status-badge status-completed">✅ PAID</span>';
+                    const badge = document.createElement('span');
+                    badge.className = 'status-badge status-completed';
+                    badge.textContent = 'PAID';
+                    payCell.appendChild(badge);
                 } else {
                     const payBtn = document.createElement('button');
                     payBtn.className = "btn-small btn-success";
@@ -164,13 +193,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderOrderHistory();
             }
         });
-
-        document.getElementById('delete-account-btn')?.addEventListener('click', async () => {
-            if (confirm("Permanently delete account? Data is wiped after 30 days.")) {
-                const res = await fetch('/api/users/request-deletion', { method: 'POST' });
-                if (res.ok) document.getElementById('deletion-notice')?.classList.remove('hidden');
-            }
-        });
     };
 
     // --- 5. ATTENDANT DASHBOARD LOGIC ---
@@ -180,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/tasks/my-tasks');
             const result = await res.json();
-            body.innerHTML = '';
+            body.textContent = '';
             (result.data || []).forEach(task => {
                 const tr = document.createElement('tr');
                 tr.append(
@@ -189,7 +211,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
                 const actionCell = document.createElement('td');
                 if (task.status === 'completed') {
-                    actionCell.innerHTML = '<span class="status-badge status-completed">Finished</span>';
+                    const badge = document.createElement('span');
+                    badge.className = 'status-badge status-completed';
+                    badge.textContent = 'Finished';
+                    actionCell.appendChild(badge);
                 } else {
                     const doneBtn = document.createElement('button');
                     doneBtn.className = "btn-small btn-primary";
@@ -225,6 +250,91 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- 6. ADMIN DASHBOARD LOGIC ---
+    const renderAdminOrders = async () => {
+        const tableBody = document.getElementById('admin-orders-table');
+        if (!tableBody) return;
+
+        try {
+            const [ordersRes, staffRes] = await Promise.all([
+                fetch('/api/admin/orders'),
+                fetch('/api/admin/attendants')
+            ]);
+            const ordersData = await ordersRes.json();
+            const staffData = await staffRes.json();
+            
+            tableBody.textContent = '';
+
+            (ordersData.data || []).forEach(order => {
+                const tr = document.createElement('tr');
+                tr.append(
+                    createCell(order.vehiclePlate),
+                    createCell(order.service?.name),
+                    createCell(order.status.toUpperCase())
+                );
+
+                const selectCell = document.createElement('td');
+                const select = document.createElement('select');
+                
+                const defaultOpt = document.createElement('option');
+                defaultOpt.textContent = order.attendant ? order.attendant.username : 'Not Assigned';
+                defaultOpt.value = order.attendant ? order.attendant._id : '';
+                select.appendChild(defaultOpt);
+
+                (staffData.attendants || []).forEach(staff => {
+                    if (order.attendant && staff._id === order.attendant._id) return;
+                    const opt = document.createElement('option');
+                    opt.value = staff._id;
+                    opt.textContent = staff.username;
+                    select.appendChild(opt);
+                });
+                selectCell.appendChild(select);
+                tr.appendChild(selectCell);
+
+                const actionCell = document.createElement('td');
+                const assignBtn = document.createElement('button');
+                assignBtn.className = 'btn-small btn-primary';
+                assignBtn.textContent = 'Assign';
+                assignBtn.onclick = async () => {
+                    const attendantId = select.value;
+                    if (!attendantId) return alert("Select an attendant first");
+                    const res = await fetch(`/api/tasks/assign/${order._id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ attendantId })
+                    });
+                    if (res.ok) {
+                        alert("Task assigned successfully");
+                        renderAdminOrders();
+                    }
+                };
+                actionCell.appendChild(assignBtn);
+                tr.appendChild(actionCell);
+
+                tableBody.appendChild(tr);
+            });
+        } catch (err) { console.error(err); }
+    };
+
+    const renderAdminServices = async () => {
+        const container = document.getElementById('services-list-container');
+        if (!container) return;
+        try {
+            const res = await fetch('/api/admin/services');
+            const data = await res.json();
+            container.textContent = '';
+            (data.services || []).forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'card mt-1';
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = s.name;
+                const priceStrong = document.createElement('strong');
+                priceStrong.textContent = ` ₦${Number(s.price).toLocaleString()}`;
+                div.append(nameSpan, priceStrong);
+                container.appendChild(div);
+            });
+        } catch (err) { console.error(err); }
+    };
+
     const setupAdminActions = () => {
         document.getElementById('service-form')?.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -237,80 +347,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            if(res.ok) {
-                renderAdminServices();
-                e.target.reset();
-            }
+            if (res.ok) { renderAdminServices(); e.target.reset(); }
         });
 
         document.getElementById('attendant-form')?.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const payload = { 
-                username: document.getElementById('att-name').value, 
+            const payload = {
+                username: document.getElementById('att-name').value,
                 email: document.getElementById('att-email').value,
-                password: document.getElementById('att-password').value 
+                password: document.getElementById('att-password').value
             };
             const res = await fetch('/api/admin/attendant', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            if(res.ok) {
-                showMessage('admin-error-container', "Staff Member Created!", false);
-                e.target.reset();
+            if (res.ok) { 
+                showMessage('admin-error-container', "Staff Member Created!", false); 
+                e.target.reset(); 
             }
         });
-    };
-
-    const renderAdminServices = async () => {
-        const container = document.getElementById('services-list-container');
-        if (!container) return;
-        try {
-            const res = await fetch('/api/admin/services');
-            const { services } = await res.json();
-            container.innerHTML = services.map(s => `
-                <div class="card mt-1" style="padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
-                    <span>${s.name}</span>
-                    <strong>₦${Number(s.price).toLocaleString()}</strong>
-                </div>
-            `).join('');
-        } catch (err) { console.error("Service sync failure:", err); }
     };
 
     const renderDailyActivity = async (date) => {
         const body = document.getElementById('daily-activity-body');
         if (!body) return;
-
-        try {
-            const res = await fetch(`/api/admin/logs?date=${date}`);
-            const data = await res.json();
-            body.innerHTML = '';
-            
-            const logs = data.logs || [];
-            if (logs.length === 0) {
-                body.innerHTML = '<tr><td colspan="4" class="text-center">No logs for this date.</td></tr>';
-                return;
-            }
-
-            logs.forEach(log => {
-                const tr = document.createElement('tr');
-                tr.append(
-                    createCell(log.username),
-                    createCell(log.action),
-                    createCell(log.ip),
-                    createCell(new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-                );
-                body.appendChild(tr);
-            });
-        } catch (err) { console.error("Audit sync error:", err); }
+        const res = await fetch(`/api/admin/logs?date=${date}`);
+        const data = await res.json();
+        body.textContent = '';
+        (data.logs || []).forEach(log => {
+            const tr = document.createElement('tr');
+            tr.append(
+                createCell(log.username), 
+                createCell(log.action), 
+                createCell(log.ip), 
+                createCell(new Date(log.createdAt).toLocaleTimeString())
+            );
+            body.appendChild(tr);
+        });
     };
 
-    // Corrected the listener for date filtering
-    document.getElementById('activity-date-filter')?.addEventListener('change', (e) => {
-        renderDailyActivity(e.target.value);
-    });
+    // --- 7. GLOBAL LISTENERS & LOGOUT ---
+    document.getElementById('activity-date-filter')?.addEventListener('change', (e) => renderDailyActivity(e.target.value));
 
-    // --- 7. LOGOUT ---
     document.getElementById('logout-btn')?.addEventListener('click', async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
         window.location.href = 'index.html';

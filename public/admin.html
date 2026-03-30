@@ -8,7 +8,10 @@
 </head>
 <body>
     <nav>
-        <strong>Admin Portal</strong>
+        <div class="nav-brand">
+            <strong>Car Wash</strong>
+            <span class="status-badge status-completed">Admin</span>
+        </div>
         <div>
             <span id="user-display"></span>
             <button id="logout-btn" class="btn-danger btn-small">Logout</button>
@@ -18,13 +21,14 @@
     <div class="container">
         <div class="dashboard-toggles mb-2">
             <button id="toggle-wash" class="btn-toggle active">Wash Types</button>
+            <button id="toggle-orders" class="btn-toggle">Manage Orders</button>
             <button id="toggle-staff" class="btn-toggle">Staff Management</button>
             <button id="toggle-activity" class="btn-toggle">Daily Activity</button>
         </div>
 
         <div id="admin-error-container"></div>
 
-        <section id="section-wash" class="card">
+        <section id="section-wash" class="card fade-in">
             <h4>Manage Services</h4>
             <p class="text-muted mb-1">Add or update types of washes available to customers.</p>
             
@@ -44,12 +48,29 @@
 
             <div class="mt-2">
                 <h5>Current Services</h5>
-                <div id="services-list-container" class="mt-1">
-                    </div>
+                <div id="services-list-container" class="mt-1"></div>
             </div>
         </section>
 
-        <section id="section-staff" class="card hidden">
+        <section id="section-orders" class="card fade-in hidden">
+            <h4>Assign & Manage Orders</h4>
+            <div class="table-container mt-1">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Plate</th>
+                            <th>Service</th>
+                            <th>Status</th>
+                            <th>Attendant</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-orders-table"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="section-staff" class="card fade-in hidden">
             <h4>Register New Attendant</h4>
             <p class="text-muted mb-1">Create accounts for car wash staff members.</p>
             
@@ -70,10 +91,13 @@
             </form>
         </section>
 
-        <section id="section-activity" class="hidden">
+        <section id="section-activity" class="fade-in hidden">
             <div class="card">
                 <h3>Operations Log</h3>
-                <input type="date" id="activity-date-filter">
+                <div class="form-group mt-1">
+                    <label for="activity-date-filter">Filter by Date:</label>
+                    <input type="date" id="activity-date-filter">
+                </div>
             </div>
 
             <div class="table-container mt-1">
