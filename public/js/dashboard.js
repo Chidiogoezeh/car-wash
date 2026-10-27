@@ -1,399 +1,460 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. UI TOGGLE LOGIC ---
-    const setupToggles = (buttonIds, sectionIds) => {
-        const buttons = buttonIds.map(id => document.getElementById(id));
-        const sections = sectionIds.map(id => document.getElementById(id));
+document.addEventListener("DOMContentLoaded", () => {
+  // Shared utilities
+  const $ = (id) => document.getElementById(id);
+  const json = async (url) => (await fetch(url)).json();
 
-        if (!buttons[0] || !sections[0]) return;
-
-        buttons.forEach((btn, index) => {
-            if (!btn) return;
-            btn.addEventListener('click', () => {
-                // Remove active class from all buttons and hide all sections in this group
-                buttons.forEach(b => b?.classList.remove('active'));
-                sections.forEach(s => s?.classList.add('hidden'));
-
-                // Activate the clicked button and its corresponding section
-                btn.classList.add('active');
-                if (sections[index]) sections[index].classList.remove('hidden');
-            });
-        });
-    };
-
-    // Initialize Toggles for all User Roles
-    setupToggles(['toggle-booking', 'toggle-status'], ['section-booking', 'section-status']); // Customer
-    setupToggles(['toggle-tasks', 'toggle-settings'], ['section-tasks', 'section-settings']); // Attendant
-    setupToggles(
-        ['toggle-wash', 'toggle-orders', 'toggle-staff', 'toggle-activity'], 
-        ['section-wash', 'section-orders', 'section-staff', 'section-activity']
-    ); // Admin
-
-    // --- 2. GLOBAL UTILITIES ---
-    const showMessage = (containerId, message, isError = true) => {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        
-        container.textContent = ''; 
-        const div = document.createElement('div');
-        div.className = isError ? 'feedback-error' : 'feedback-success';
-        div.textContent = message;
-        container.appendChild(div);
-        
-        setTimeout(() => { if (div) div.remove(); }, 5000);
-    };
-
-    const createCell = (text) => {
-        const td = document.createElement('td');
-        td.textContent = text || '---';
-        return td;
-    };
-
-    // --- 3. AUTHENTICATION & ROLE PROTECTION ---
-    const checkAuth = async () => {
-        try {
-            const res = await fetch('/api/auth/me');
-            const data = await res.json();
-            const currentPath = window.location.pathname;
-            const isLoginPage = currentPath.endsWith('index.html') || currentPath === '/' || currentPath.endsWith('login.html');
-
-            if (!data || !data.success) {
-                if (!isLoginPage) window.location.href = 'index.html';
-                return;
-            }
-
-            const { role, username } = data.user;
-            const display = document.getElementById('user-display');
-            if (display) display.textContent = `Welcome, ${username}`;
-
-            // Secure Redirects
-            if (role === 'admin' && !currentPath.includes('admin.html')) return window.location.href = 'admin.html';
-            if (role === 'attendant' && !currentPath.includes('attendant.html')) return window.location.href = 'attendant.html';
-            if (role === 'customer' && isLoginPage) return window.location.href = 'customer.html';
-
-            // Initialize views based on role
-            if (role === 'customer') {
-                populateCustomerDropdowns();
-                renderOrderHistory();
-                setupCustomerActions();
-            } else if (role === 'attendant') {
-                renderAttendantTasks();
-                setupAttendantActions();
-            } else if (role === 'admin') {
-                renderAdminServices();
-                renderAdminOrders();
-                setupAdminActions();
-                const filter = document.getElementById('activity-date-filter');
-                if (filter) {
-                    const today = new Date().toISOString().split('T')[0];
-                    filter.value = today;
-                    renderDailyActivity(today);
-                }
-            }
-        } catch (err) {
-            console.error("Auth System Error:", err);
-        }
-    };
-
-    // --- 4. CUSTOMER DASHBOARD LOGIC ---
-    const populateCustomerDropdowns = async () => {
-        const svcSelect = document.getElementById('service-select');
-        const slotSelect = document.getElementById('slot-select');
-        if (!svcSelect || !slotSelect) return;
-        
-        try {
-            const res = await fetch('/api/admin/services');
-            const data = await res.json();
-            
-            svcSelect.textContent = '';
-            const defaultSvc = document.createElement('option');
-            defaultSvc.disabled = true;
-            defaultSvc.selected = true;
-            defaultSvc.textContent = 'Select Wash Type';
-            svcSelect.appendChild(defaultSvc);
-
-            (data.services || []).forEach(svc => {
-                const opt = document.createElement('option');
-                opt.value = svc._id;
-                opt.textContent = `${svc.name} - ₦${Number(svc.price).toLocaleString()}`;
-                svcSelect.appendChild(opt);
-            });
-
-            const slots = ["09:00 AM", "12:00 PM", "03:00 PM", "06:00 PM"];
-            slotSelect.textContent = '';
-            const defaultSlot = document.createElement('option');
-            defaultSlot.disabled = true;
-            defaultSlot.selected = true;
-            defaultSlot.textContent = 'Select a slot';
-            slotSelect.appendChild(defaultSlot);
-
-            slots.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s; 
-                opt.textContent = s;
-                slotSelect.appendChild(opt);
-            });
-        } catch (err) { console.error("Dropdown load failure:", err); }
-    };
-
-    const renderOrderHistory = async () => {
-        const body = document.getElementById('order-history');
-        if (!body) return;
-        try {
-            const res = await fetch('/api/orders/my-orders');
-            const result = await res.json();
-            body.textContent = '';
-            (result.data || []).forEach(order => {
-                const tr = document.createElement('tr');
-                tr.append(
-                    createCell(order.vehiclePlate),
-                    createCell(order.service?.name),
-                    createCell(order.status.toUpperCase())
-                );
-                
-                const payCell = document.createElement('td');
-                if (order.paymentConfirmed) {
-                    const badge = document.createElement('span');
-                    badge.className = 'status-badge status-completed';
-                    badge.textContent = 'PAID';
-                    payCell.appendChild(badge);
-                } else {
-                    const payBtn = document.createElement('button');
-                    payBtn.className = "btn-small btn-success";
-                    payBtn.textContent = "Notify Payment";
-                    payBtn.onclick = async () => {
-                        payBtn.disabled = true;
-                        const confirmPay = await fetch(`/api/orders/paid/${order._id}`, { method: 'PATCH' });
-                        if(confirmPay.ok) renderOrderHistory();
-                        else payBtn.disabled = false;
-                    };
-                    payCell.appendChild(payBtn);
-                }
-                tr.appendChild(payCell);
-                body.appendChild(tr);
-            });
-        } catch (err) { console.error("History Sync Error:", err); }
-    };
-
-    const setupCustomerActions = () => {
-        document.getElementById('booking-form')?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                service: document.getElementById('service-select').value,
-                slot: document.getElementById('slot-select').value,
-                vehiclePlate: document.getElementById('plate-number').value
-            };
-            const res = await fetch('/api/orders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) {
-                showMessage('message-container', "Booking Confirmed!", false);
-                e.target.reset();
-                renderOrderHistory();
-            }
-        });
-    };
-
-    // --- 5. ATTENDANT DASHBOARD LOGIC ---
-    const renderAttendantTasks = async () => {
-        const body = document.getElementById('attendant-tasks');
-        if (!body) return;
-        try {
-            const res = await fetch('/api/tasks/my-tasks');
-            const result = await res.json();
-            body.textContent = '';
-            (result.data || []).forEach(task => {
-                const tr = document.createElement('tr');
-                tr.append(
-                    createCell(task.vehiclePlate),
-                    createCell(task.service?.name)
-                );
-                const actionCell = document.createElement('td');
-                if (task.status === 'completed') {
-                    const badge = document.createElement('span');
-                    badge.className = 'status-badge status-completed';
-                    badge.textContent = 'Finished';
-                    actionCell.appendChild(badge);
-                } else {
-                    const doneBtn = document.createElement('button');
-                    doneBtn.className = "btn-small btn-primary";
-                    doneBtn.textContent = "Mark Done";
-                    doneBtn.onclick = async () => {
-                        doneBtn.disabled = true;
-                        const done = await fetch(`/api/tasks/complete/${task._id}`, { method: 'PATCH' });
-                        if(done.ok) renderAttendantTasks();
-                        else doneBtn.disabled = false;
-                    };
-                    actionCell.appendChild(doneBtn);
-                }
-                tr.appendChild(actionCell);
-                body.appendChild(tr);
-            });
-        } catch (err) { console.error("Task update error:", err); }
-    };
-
-    const setupAttendantActions = () => {
-        document.getElementById('save-pass-btn')?.addEventListener('click', async () => {
-            const newPass = document.getElementById('new-password').value;
-            if (newPass.length < 8) return alert("Min. 8 characters required");
-            const res = await fetch('/api/users/update-password', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: newPass })
-            });
-            if (res.ok) {
-                alert("Password Updated!");
-                document.getElementById('new-password').value = '';
-            }
-        });
-    };
-
-    // --- 6. ADMIN DASHBOARD LOGIC ---
-    const renderAdminOrders = async () => {
-        const tableBody = document.getElementById('admin-orders-table');
-        if (!tableBody) return;
-
-        try {
-            const [ordersRes, staffRes] = await Promise.all([
-                fetch('/api/admin/orders'),
-                fetch('/api/admin/attendants')
-            ]);
-            const ordersData = await ordersRes.json();
-            const staffData = await staffRes.json();
-            
-            tableBody.textContent = '';
-
-            (ordersData.data || []).forEach(order => {
-                const tr = document.createElement('tr');
-                tr.append(
-                    createCell(order.vehiclePlate),
-                    createCell(order.service?.name),
-                    createCell(order.status.toUpperCase())
-                );
-
-                const selectCell = document.createElement('td');
-                const select = document.createElement('select');
-                
-                const defaultOpt = document.createElement('option');
-                defaultOpt.textContent = order.attendant ? order.attendant.username : 'Not Assigned';
-                defaultOpt.value = order.attendant ? order.attendant._id : '';
-                select.appendChild(defaultOpt);
-
-                (staffData.attendants || []).forEach(staff => {
-                    if (order.attendant && staff._id === order.attendant._id) return;
-                    const opt = document.createElement('option');
-                    opt.value = staff._id;
-                    opt.textContent = staff.username;
-                    select.appendChild(opt);
-                });
-                selectCell.appendChild(select);
-                tr.appendChild(selectCell);
-
-                const actionCell = document.createElement('td');
-                const assignBtn = document.createElement('button');
-                assignBtn.className = 'btn-small btn-primary';
-                assignBtn.textContent = 'Assign';
-                assignBtn.onclick = async () => {
-                    const attendantId = select.value;
-                    if (!attendantId) return alert("Select an attendant first");
-                    const res = await fetch(`/api/tasks/assign/${order._id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ attendantId })
-                    });
-                    if (res.ok) {
-                        alert("Task assigned successfully");
-                        renderAdminOrders();
-                    }
-                };
-                actionCell.appendChild(assignBtn);
-                tr.appendChild(actionCell);
-
-                tableBody.appendChild(tr);
-            });
-        } catch (err) { console.error(err); }
-    };
-
-    const renderAdminServices = async () => {
-        const container = document.getElementById('services-list-container');
-        if (!container) return;
-        try {
-            const res = await fetch('/api/admin/services');
-            const data = await res.json();
-            container.textContent = '';
-            (data.services || []).forEach(s => {
-                const div = document.createElement('div');
-                div.className = 'card mt-1';
-                const nameSpan = document.createElement('span');
-                nameSpan.textContent = s.name;
-                const priceStrong = document.createElement('strong');
-                priceStrong.textContent = ` ₦${Number(s.price).toLocaleString()}`;
-                div.append(nameSpan, priceStrong);
-                container.appendChild(div);
-            });
-        } catch (err) { console.error(err); }
-    };
-
-    const setupAdminActions = () => {
-        document.getElementById('service-form')?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = { 
-                name: document.getElementById('svc-name').value, 
-                price: document.getElementById('svc-price').value 
-            };
-            const res = await fetch('/api/admin/services', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) { renderAdminServices(); e.target.reset(); }
-        });
-
-        document.getElementById('attendant-form')?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                username: document.getElementById('att-name').value,
-                email: document.getElementById('att-email').value,
-                password: document.getElementById('att-password').value
-            };
-            const res = await fetch('/api/admin/attendant', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) { 
-                showMessage('admin-error-container', "Staff Member Created!", false); 
-                e.target.reset(); 
-            }
-        });
-    };
-
-    const renderDailyActivity = async (date) => {
-        const body = document.getElementById('daily-activity-body');
-        if (!body) return;
-        const res = await fetch(`/api/admin/logs?date=${date}`);
-        const data = await res.json();
-        body.textContent = '';
-        (data.logs || []).forEach(log => {
-            const tr = document.createElement('tr');
-            tr.append(
-                createCell(log.username), 
-                createCell(log.action), 
-                createCell(log.ip), 
-                createCell(new Date(log.createdAt).toLocaleTimeString())
-            );
-            body.appendChild(tr);
-        });
-    };
-
-    // --- 7. GLOBAL LISTENERS & LOGOUT ---
-    document.getElementById('activity-date-filter')?.addEventListener('change', (e) => renderDailyActivity(e.target.value));
-
-    document.getElementById('logout-btn')?.addEventListener('click', async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        window.location.href = 'index.html';
+  const send = (url, method, body) =>
+    fetch(url, {
+      method,
+      ...(body === undefined
+        ? {}
+        : {
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          }),
     });
 
-    checkAuth();
+  const clear = (element) => {
+    element.textContent = "";
+  };
+
+  const cell = (value) => {
+    const td = document.createElement("td");
+    td.textContent = value || "---";
+    return td;
+  };
+
+  const badge = (text, className = "status-badge status-completed") => {
+    const span = document.createElement("span");
+    span.className = className;
+    span.textContent = text;
+    return span;
+  };
+
+  const button = (text, className, onClick) => {
+    const btn = document.createElement("button");
+    btn.className = className;
+    btn.textContent = text;
+    btn.addEventListener("click", onClick);
+    return btn;
+  };
+
+  const showMessage = (id, message, isError = true) => {
+    const container = $(id);
+    if (!container) return;
+
+    clear(container);
+    const div = document.createElement("div");
+    div.className = isError ? "feedback-error" : "feedback-success";
+    div.textContent = message;
+    container.appendChild(div);
+    setTimeout(() => div.remove(), 5000);
+  };
+
+  const setupToggles = (buttonIds, sectionIds) => {
+    const buttons = buttonIds.map($);
+    const sections = sectionIds.map($);
+
+    if (!buttons[0] || !sections[0]) return;
+
+    buttons.forEach((btn, index) => {
+      if (!btn) return;
+
+      btn.addEventListener("click", () => {
+        buttons.forEach((b) => b?.classList.remove("active"));
+        sections.forEach((s) => s?.classList.add("hidden"));
+
+        btn.classList.add("active");
+        sections[index]?.classList.remove("hidden");
+      });
+    });
+  };
+
+  setupToggles(
+    ["toggle-booking", "toggle-status"],
+    ["section-booking", "section-status"],
+  );
+
+  setupToggles(
+    ["toggle-tasks", "toggle-settings"],
+    ["section-tasks", "section-settings"],
+  );
+
+  setupToggles(
+    ["toggle-wash", "toggle-orders", "toggle-staff", "toggle-activity"],
+    ["section-wash", "section-orders", "section-staff", "section-activity"],
+  );
+
+  // Authentication and role routing
+  const checkAuth = async () => {
+    try {
+      const data = await json("/api/auth/me");
+      const path = location.pathname;
+      const isLogin =
+        path.endsWith("index.html") ||
+        path === "/" ||
+        path.endsWith("login.html");
+
+      if (!data?.success) {
+        if (!isLogin) location.href = "index.html";
+        return;
+      }
+
+      const { role, username } = data.user;
+      const display = $("user-display");
+      if (display) display.textContent = `Welcome, ${username}`;
+
+      const dashboards = {
+        admin: "admin.html",
+        attendant: "attendant.html",
+        customer: "customer.html",
+      };
+
+      if (
+        role !== "customer" &&
+        dashboards[role] &&
+        !path.includes(dashboards[role])
+      ) {
+        location.href = dashboards[role];
+        return;
+      }
+
+      if (role === "customer" && isLogin) {
+        location.href = dashboards.customer;
+        return;
+      }
+
+      if (role === "customer") {
+        populateCustomerDropdowns();
+        renderOrderHistory();
+        setupCustomerActions();
+      } else if (role === "attendant") {
+        renderAttendantTasks();
+        setupAttendantActions();
+      } else if (role === "admin") {
+        renderAdminServices();
+        renderAdminOrders();
+
+        const filter = $("activity-date-filter");
+        if (filter) {
+          const today = new Date().toISOString().split("T")[0];
+          filter.value = today;
+          renderDailyActivity(today);
+        }
+
+        setupAdminActions();
+      }
+    } catch (err) {
+      console.error("Auth System Error:", err);
+    }
+  };
+
+  // Customer dashboard
+  const populateCustomerDropdowns = async () => {
+    const services = $("service-select");
+    const slotsSelect = $("slot-select");
+    if (!services || !slotsSelect) return;
+
+    try {
+      const data = await json("/api/admin/services");
+      clear(services);
+
+      const defaultService = new Option("Select Wash Type", "");
+      defaultService.disabled = defaultService.selected = true;
+      services.appendChild(defaultService);
+
+      (data.services || []).forEach((service) => {
+        services.appendChild(
+          new Option(
+            `${service.name} - ₦${Number(service.price).toLocaleString()}`,
+            service._id,
+          ),
+        );
+      });
+
+      clear(slotsSelect);
+      const defaultSlot = new Option("Select a slot", "");
+      defaultSlot.disabled = defaultSlot.selected = true;
+      slotsSelect.appendChild(defaultSlot);
+
+      ["09:00 AM", "12:00 PM", "03:00 PM", "06:00 PM"].forEach((slot) =>
+        slotsSelect.appendChild(new Option(slot, slot)),
+      );
+    } catch (err) {
+      console.error("Dropdown load failure:", err);
+    }
+  };
+
+  const renderOrderHistory = async () => {
+    const body = $("order-history");
+    if (!body) return;
+
+    try {
+      const result = await json("/api/orders/my-orders");
+      clear(body);
+
+      (result.data || []).forEach((order) => {
+        const row = document.createElement("tr");
+        row.append(
+          cell(order.vehiclePlate),
+          cell(order.service?.name),
+          cell(order.status.toUpperCase()),
+        );
+
+        const paymentCell = document.createElement("td");
+
+        if (order.paymentConfirmed) {
+          paymentCell.appendChild(badge("PAID"));
+        } else {
+          paymentCell.appendChild(
+            button("Notify Payment", "btn-small btn-success", async (event) => {
+              const btn = event.currentTarget;
+              btn.disabled = true;
+
+              const res = await send(`/api/orders/paid/${order._id}`, "PATCH");
+
+              if (res.ok) renderOrderHistory();
+              else btn.disabled = false;
+            }),
+          );
+        }
+
+        row.appendChild(paymentCell);
+        body.appendChild(row);
+      });
+    } catch (err) {
+      console.error("History Sync Error:", err);
+    }
+  };
+
+  const setupCustomerActions = () => {
+    $("booking-form")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const payload = {
+        service: $("service-select").value,
+        slot: $("slot-select").value,
+        vehiclePlate: $("plate-number").value,
+      };
+
+      const res = await send("/api/orders", "POST", payload);
+
+      if (res.ok) {
+        showMessage("message-container", "Booking Confirmed!", false);
+        event.target.reset();
+        renderOrderHistory();
+      }
+    });
+  };
+
+  // Attendant dashboard
+  const renderAttendantTasks = async () => {
+    const body = $("attendant-tasks");
+    if (!body) return;
+
+    try {
+      const result = await json("/api/tasks/my-tasks");
+      clear(body);
+
+      (result.data || []).forEach((task) => {
+        const row = document.createElement("tr");
+        row.append(cell(task.vehiclePlate), cell(task.service?.name));
+
+        const actionCell = document.createElement("td");
+
+        if (task.status === "completed") {
+          actionCell.appendChild(badge("Finished"));
+        } else {
+          actionCell.appendChild(
+            button("Mark Done", "btn-small btn-primary", async (event) => {
+              const btn = event.currentTarget;
+              btn.disabled = true;
+
+              const res = await send(
+                `/api/tasks/complete/${task._id}`,
+                "PATCH",
+              );
+
+              if (res.ok) renderAttendantTasks();
+              else btn.disabled = false;
+            }),
+          );
+        }
+
+        row.appendChild(actionCell);
+        body.appendChild(row);
+      });
+    } catch (err) {
+      console.error("Task update error:", err);
+    }
+  };
+
+  const setupAttendantActions = () => {
+    $("save-pass-btn")?.addEventListener("click", async () => {
+      const password = $("new-password").value;
+      if (password.length < 8) return alert("Min. 8 characters required");
+
+      const res = await send("/api/users/update-password", "PATCH", {
+        password,
+      });
+
+      if (res.ok) {
+        alert("Password Updated!");
+        $("new-password").value = "";
+      }
+    });
+  };
+
+  // Admin dashboard
+  const renderAdminOrders = async () => {
+    const body = $("admin-orders-table");
+    if (!body) return;
+
+    try {
+      const [orders, staff] = await Promise.all([
+        json("/api/admin/orders"),
+        json("/api/admin/attendants"),
+      ]);
+
+      clear(body);
+
+      (orders.data || []).forEach((order) => {
+        const row = document.createElement("tr");
+        row.append(
+          cell(order.vehiclePlate),
+          cell(order.service?.name),
+          cell(order.status.toUpperCase()),
+        );
+
+        const selectCell = document.createElement("td");
+        const select = document.createElement("select");
+        const attendant = order.attendant;
+
+        select.appendChild(
+          new Option(
+            attendant ? attendant.username : "Not Assigned",
+            attendant ? attendant._id : "",
+          ),
+        );
+
+        (staff.attendants || []).forEach((person) => {
+          if (!attendant || person._id !== attendant._id) {
+            select.appendChild(new Option(person.username, person._id));
+          }
+        });
+
+        selectCell.appendChild(select);
+        row.appendChild(selectCell);
+
+        const actionCell = document.createElement("td");
+        actionCell.appendChild(
+          button("Assign", "btn-small btn-primary", async () => {
+            if (!select.value) return alert("Select an attendant first");
+
+            const res = await send(`/api/tasks/assign/${order._id}`, "PATCH", {
+              attendantId: select.value,
+            });
+
+            if (res.ok) {
+              alert("Task assigned successfully");
+              renderAdminOrders();
+            }
+          }),
+        );
+
+        row.appendChild(actionCell);
+        body.appendChild(row);
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const renderAdminServices = async () => {
+    const container = $("services-list-container");
+    if (!container) return;
+
+    try {
+      const data = await json("/api/admin/services");
+      clear(container);
+
+      (data.services || []).forEach((service) => {
+        const card = document.createElement("div");
+        card.className = "card mt-1";
+
+        const name = document.createElement("span");
+        name.textContent = service.name;
+
+        const price = document.createElement("strong");
+        price.textContent = ` ₦${Number(service.price).toLocaleString()}`;
+
+        card.append(name, price);
+        container.appendChild(card);
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const setupAdminActions = () => {
+    $("service-form")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const res = await send("/api/admin/services", "POST", {
+        name: $("svc-name").value,
+        price: $("svc-price").value,
+      });
+
+      if (res.ok) {
+        renderAdminServices();
+        event.target.reset();
+      }
+    });
+
+    $("attendant-form")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const res = await send("/api/admin/attendant", "POST", {
+        username: $("att-name").value,
+        email: $("att-email").value,
+        password: $("att-password").value,
+      });
+
+      if (res.ok) {
+        showMessage("admin-error-container", "Staff Member Created!", false);
+        event.target.reset();
+      }
+    });
+  };
+
+  const renderDailyActivity = async (date) => {
+    const body = $("daily-activity-body");
+    if (!body) return;
+
+    const data = await json(`/api/admin/logs?date=${date}`);
+    clear(body);
+
+    (data.logs || []).forEach((log) => {
+      const row = document.createElement("tr");
+      row.append(
+        cell(log.username),
+        cell(log.action),
+        cell(log.ip),
+        cell(new Date(log.createdAt).toLocaleTimeString()),
+      );
+      body.appendChild(row);
+    });
+  };
+
+  // Global listeners
+  $("activity-date-filter")?.addEventListener("change", (event) => {
+    renderDailyActivity(event.target.value);
+  });
+
+  $("logout-btn")?.addEventListener("click", async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    location.href = "index.html";
+  });
+
+  checkAuth();
 });
